@@ -90,6 +90,10 @@
 #define LED_GREEN_ON() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,GPIO_PIN_3);}while(0)
 #define LED_GREEN_OFF() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);}while(0)
 
+// onboard buttons
+#define BTN1 (GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_4)==0)
+#define BTN2 (GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_0)==0)
+
 //*****************************************************************************
 //
 // The error routine that is called if the driver library encounters an error.
@@ -128,6 +132,64 @@ int h2i(char c)
     return -1;
 }
 
+// max ticks per one step (~ lowest speed possible .. 2^30)
+#define MAX_TICKS 0x20000000
+
+typedef struct {
+    float speed;
+    uint32_t step_ticks; // number of ticks per one step
+    uint32_t step_timer; // timer counter to calculate steps
+    int run; // 0 stop, 1 forward, -1 backward
+} motor_t;
+
+uint32_t spd2ticks(float speed)
+{
+    float fltTicks = (float)MAX_TICKS;
+    if (speed!=0)
+        fltTicks = (float)TICKS_PER_SECOND/speed;
+    if (fltTicks<0)
+        fltTicks=-fltTicks;
+    if (fltTicks>(float)MAX_TICKS)
+        fltTicks=(float)MAX_TICKS;
+    return (uint32_t)fltTicks;
+}
+
+float ramp(float spdA, float spdB, uint32_t timA, uint32_t timB, uint32_t timN)
+{
+    float spdAB = spdB-spdA;
+    uint32_t timAB = timB-timA;
+
+    return spdA + spdAB*((float)timN/(float)timAB);
+}
+
+float accel(float spd, float acl, uint32_t dt)
+{
+    return (spd + (acl*dt/TICKS_PER_SECOND));
+}
+
+void motor_step(motor_t *m, bool dir)
+{
+    if ((m->run==0) || ((m->run==1)&&(dir==false)) || ((m->run==-1)&&(dir==true)))
+    {
+        if (dir) {
+            MOTOR_DIR_H();
+            m->run=1;
+        } else {
+            MOTOR_DIR_L();
+            m->run=-1;
+        };
+        wait_micros(5);
+    }
+
+    MOTOR_PUL_H();
+    wait_micros(5);
+    MOTOR_PUL_L();
+}
+
+#define TEST_SPEED 2000.0
+#define TEST_ACCEL 5000.0
+#define TEST_MIN_SPEED 10.0
+
 // main program
 int main(void)
 {
@@ -150,9 +212,17 @@ int main(void)
     GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_6);
 
     // init leds
+    // Enable pin PF0/4 for GPIOInput
+    //First open the lock and select the bits we want to modify in the GPIO commit register.
+    HWREG(GPIO_PORTF_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+    HWREG(GPIO_PORTF_BASE + GPIO_O_CR) = 0x1;
+    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_0|GPIO_PIN_4);
+    GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_0|GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
     GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3);
     GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, 0x00);
+    HWREG(GPIO_PORTF_BASE + GPIO_O_CR) = 0x0;
 
+    // free running timer init
     init_timer();
 
     // pulse ENA (to clear FLT)
@@ -161,10 +231,18 @@ int main(void)
     MOTOR_ENA_L();
     wait_micros(100);
 
+    motor_t m;
+    m.speed = 0; // Hz
+    m.step_timer = 0;
+    m.run = 0;
+
+    uint32_t tLast = 0;
+
     // Loop forever.
     while(1)
     {
         uint32_t tNow = get_fast_ticks();
+        uint32_t tDiff = tNow-tLast;
 
         if (UARTCharsAvail(UART0_BASE)) {
             char c = UARTCharGet(UART0_BASE);
@@ -173,6 +251,100 @@ int main(void)
 
         if (MOTOR_FLT) LED_RED_ON(); else LED_RED_OFF();
 
-        if (tNow&0x1000) MOTOR_PUL_H(); else MOTOR_PUL_L();
+        //if (tNow&0x1000) MOTOR_PUL_H(); else MOTOR_PUL_L();
+
+        static int mstate = 0;
+        switch (mstate) {
+        case 0: // wait button
+            if (BTN1) {
+                m.speed = -10;
+                m.run = 0;
+                mstate++;
+            }
+            else if (BTN2) {
+                m.speed = 10;
+                m.run = 0;
+                mstate=4;
+            }
+            break;
+        case 1: // accelerate backward
+            if (BTN1) {
+                m.speed = accel(m.speed,-TEST_ACCEL,tDiff);
+                if (m.speed<=-TEST_SPEED) {
+                    m.speed =-TEST_SPEED;
+                    mstate++;
+                }
+            } else mstate+=2;
+            break;
+        case 2: // go backward (full speed)
+            if (!BTN1) mstate++;
+            break;
+        case 3:
+            if (BTN1) mstate-=2;
+            else {
+                m.speed = accel(m.speed,TEST_ACCEL,tDiff);
+                if (m.speed>=-TEST_MIN_SPEED) {
+                    m.speed = 0.0;
+                    mstate = 0;
+                }
+            }
+            break;
+        case 4: // accelerate forward
+            if (BTN2) {
+                m.speed = accel(m.speed,TEST_ACCEL,tDiff);
+                if (m.speed>=TEST_SPEED) {
+                    m.speed =TEST_SPEED;
+                    mstate++;
+                }
+            } else mstate+=2;
+            break;
+        case 5: // go forward (full speed)
+            if (!BTN2) mstate++;
+            break;
+        case 6: // decelerate
+            if (BTN2) mstate-=2;
+            else {
+                m.speed = accel(m.speed,-TEST_ACCEL,tDiff);
+                if (m.speed<=TEST_MIN_SPEED) {
+                    m.speed = 0.0;
+                    mstate = 0;
+                }
+            }
+            break;
+        default:
+            mstate = 0;
+            break;
+        }
+
+        if (m.speed!=0) {
+            m.step_ticks=spd2ticks(m.speed);
+            m.step_timer+=tDiff;
+            if (m.step_timer>=m.step_ticks) {
+                motor_step(&m,(m.speed>0));
+                m.step_timer-=m.step_ticks;
+            }
+        } else {
+            m.step_timer=0;
+            m.run=0;
+        }
+
+        switch (m.run) {
+        case 0:
+            LED_BLUE_OFF();
+            LED_GREEN_OFF();
+            break;
+        case 1:
+            LED_GREEN_ON();
+            LED_BLUE_OFF();
+            break;
+        case -1:
+            LED_GREEN_OFF();
+            LED_BLUE_ON();
+            break;
+        default:
+            break;
+        }
+
+        tLast = tNow;
     }
 }

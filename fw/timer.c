@@ -46,6 +46,7 @@ void wait_ticks(uint32_t t)
 }
 
 #define TICKS_PER_MICROSEC 16
+#define TICKS_PER_SECOND 16000000
 
 void wait_micros(uint32_t us)
 {

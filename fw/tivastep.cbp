@@ -30,6 +30,9 @@
 		<Unit filename="startup_gcc.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="timer.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Extensions>
 			<code_completion />
 			<debugger />
