@@ -56,6 +56,8 @@
 #include "driverlib/timer.h"
 #include "utils/uartstdio.h"
 
+#include "timer.c"
+
 //*****************************************************************************
 //
 //! \addtogroup example_list
@@ -71,12 +73,22 @@
 //
 //*****************************************************************************
 
-#define LED_CAN_RX_ON() do{GPIOPinWrite(GPIO_PORTD_BASE,GPIO_PIN_6,GPIO_PIN_6);}while(0)
-#define LED_CAN_RX_OFF() do{GPIOPinWrite(GPIO_PORTD_BASE,GPIO_PIN_6,0);}while(0)
-#define LED_CAN_TX_ON() do{GPIOPinWrite(GPIO_PORTD_BASE,GPIO_PIN_7,GPIO_PIN_7);}while(0)
-#define LED_CAN_TX_OFF() do{GPIOPinWrite(GPIO_PORTD_BASE,GPIO_PIN_7,0);}while(0)
+// motor ios
+#define MOTOR_ENA_H() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_4,GPIO_PIN_4);}while(0)
+#define MOTOR_ENA_L() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_4,0);}while(0)
+#define MOTOR_PUL_H() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_2,GPIO_PIN_2);}while(0)
+#define MOTOR_PUL_L() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_2,0);}while(0)
+#define MOTOR_DIR_H() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_3,GPIO_PIN_3);}while(0)
+#define MOTOR_DIR_L() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_3,0);}while(0)
+#define MOTOR_FLT (GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_6)!=0)
 
-#define UART_RX_BUFF_SIZE 64
+// onboard leds
+#define LED_RED_ON() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,GPIO_PIN_1);}while(0)
+#define LED_RED_OFF() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,0);}while(0)
+#define LED_BLUE_ON() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,GPIO_PIN_2);}while(0)
+#define LED_BLUE_OFF() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2,0);}while(0)
+#define LED_GREEN_ON() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,GPIO_PIN_3);}while(0)
+#define LED_GREEN_OFF() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);}while(0)
 
 //*****************************************************************************
 //
@@ -90,45 +102,19 @@ __error__(char *pcFilename, uint32_t ui32Line)
 }
 #endif
 
+// debug console init
 void debugConsoleInit(void)
 {
   // enable GPIO port A which is used for UART0
-  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+  //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
   GPIOPinConfigure(GPIO_PA0_U0RX);
   GPIOPinConfigure(GPIO_PA1_U0TX);
 
   // enable UART0
-  SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+  //SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
   UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC); // use internal 16MHz osc.
   GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-  UARTStdioConfig(0, 1000000, 16000000);
-}
-
-volatile uint32_t g_ui32MsgCount = 0;
-volatile bool g_bRXFlag = 0;
-volatile bool g_bErrFlag = 0;
-
-void CANIntHandler(void)
-{
-  uint32_t ui32Status;
-
-  ui32Status = CANIntStatus(CAN0_BASE, CAN_INT_STS_CAUSE);
-
-  // controller status interrupt
-  if (ui32Status == CAN_INT_INTID_STATUS) {
-    ui32Status = CANStatusGet(CAN0_BASE, CAN_STS_CONTROL);
-    g_bErrFlag = 1;
-  }
-  // receive message
-  else if (ui32Status == 1) {
-    CANIntClear(CAN0_BASE, 1);
-    g_ui32MsgCount++;
-    g_bRXFlag = 1;
-    g_bErrFlag = 0;
-  }
-  // this should never happen
-  else {
-  }
+  UARTStdioConfig(0, 115200, 16000000);
 }
 
 int h2i(char c)
@@ -142,198 +128,51 @@ int h2i(char c)
     return -1;
 }
 
-int UartUseBuffer(char *buff)
-{
-    int cnt;
-    char c;
-
-    uint32_t id = 0;
-    bool typeB = false;
-    int dlen = 0;
-    uint8_t data[8];
-
-    for (cnt=0;cnt<9;cnt++) {
-        c = *buff++;
-        if (c=='.')
-            break;
-        int i = h2i(c);
-        if (i<0)
-            break;
-        id<<=4;
-        id|=i;
-    }
-    if (cnt==8)
-        typeB = true;
-    else if (cnt==3)
-        typeB = false;
-    else
-        return -1; // wrong ID length (should be 3 for A or 8 for B type)
-    cnt++;
-
-    for (;cnt<UART_RX_BUFF_SIZE;cnt+=2) {
-        c = *buff++;
-        if ((c=='.')||(c=='\0'))
-            break;
-        int iH = h2i(c);
-        int iL = h2i(*buff++);
-        if ((iH<0)|(iL<0))
-            return -2;
-        data[dlen++]=(iH<<4)|iL;
-    }
-
-    UARTprintf("Ahoj\n");
-    return(0);
-}
-//*****************************************************************************
-//
-// Toggle a GPIO.
-//
-//*****************************************************************************
+// main program
 int main(void)
 {
-    debugConsoleInit();
+    // enable all used peripherals
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA); // uart0, ios
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB); // ios
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF); // leds
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0); // uart0
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // timer0
 
-    tCANMsgObject sCANMessage;
-    uint8_t pui8MsgData[8];
-
+    // init clock
     SysCtlClockSet(SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
 
-    // init CAN TX/RX led outputs
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    // unlock GPIOD7
-    HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
-    HWREG(GPIO_PORTD_BASE + GPIO_O_CR)  |= 0x80;
-    HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) = 0;
-    GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, GPIO_PIN_6|GPIO_PIN_7);
-    GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_6|GPIO_PIN_7, GPIO_PIN_6|GPIO_PIN_7);
-    SysCtlDelay(2000000);
-    GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_6|GPIO_PIN_7, 0);
-    SysCtlDelay(2000000);
+    // init serial console
+    debugConsoleInit();
 
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-    TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC_UP);
-    //TimerRTCEnable(TIMER0_BASE);
-    TimerEnable(TIMER0_BASE, TIMER_BOTH);
+    // init motor ios
+    GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4);
+    GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4, 0x00);
+    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_6);
 
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
-    GPIOPinConfigure(GPIO_PE4_CAN0RX);
-    GPIOPinConfigure(GPIO_PE5_CAN0TX);
-    GPIOPinTypeCAN(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5);
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN0);
-    CANInit(CAN0_BASE);
-    CANBitRateSet(CAN0_BASE, SysCtlClockGet(), 250000);
-    CANIntEnable(CAN0_BASE, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
-    IntEnable(INT_CAN0);
-    CANEnable(CAN0_BASE);
+    // init leds
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3);
+    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, 0x00);
 
-    sCANMessage.ui32MsgID = 0;
-    sCANMessage.ui32MsgIDMask = 0;
-    sCANMessage.ui32Flags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
-    sCANMessage.ui32MsgLen = 8;
+    init_timer();
 
-    CANMessageSet(CAN0_BASE, 1, &sCANMessage, MSG_OBJ_TYPE_RX);
+    // pulse ENA (to clear FLT)
+    MOTOR_ENA_H();
+    wait_micros(100);
+    MOTOR_ENA_L();
+    wait_micros(100);
 
-    //
-    // Enable the GPIO module.
-    //
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);
-
-    int32_t rxLedOn = 0;
-    uint32_t tRxLed = TimerValueGet(TIMER0_BASE,TIMER_B);
-    uint32_t last_tRxLed = tRxLed;
-
-    int UartRxBuffCnt = 0;
-    char UartRxBuff[UART_RX_BUFF_SIZE];
-    //UARTprintf("CAN booster pack FW .. receiving CanBus messages:\n");
-
-    //
     // Loop forever.
-    //
     while(1)
     {
-        unsigned int uIdx;
+        uint32_t tNow = get_fast_ticks();
 
-        if (g_bRXFlag) {
-            GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
-
-            //uint32_t tFast = TimerValueGet(TIMER0_BASE,TIMER_A); // faster time ticks
-            uint32_t tSlow = TimerValueGet(TIMER0_BASE,TIMER_B); // slower time ticks
-
-            sCANMessage.pui8MsgData = pui8MsgData;
-            CANMessageGet(CAN0_BASE, 1, &sCANMessage, 0);
-            g_bRXFlag = 0;
-            UARTprintf(":%04X",tSlow);
-            if(sCANMessage.ui32Flags & MSG_OBJ_DATA_LOST) {
-                UARTprintf(".ERROR\n");
-                sCANMessage.ui32Flags &= ~MSG_OBJ_DATA_LOST;
-                CANMessageSet(CAN0_BASE, 1, &sCANMessage, MSG_OBJ_TYPE_RX);
-            }
-            if (sCANMessage.ui32Flags & MSG_OBJ_EXTENDED_ID)
-                UARTprintf(".%08X."/*%u."*/,sCANMessage.ui32MsgID);//, sCANMessage.ui32MsgLen);
-            else
-                UARTprintf(".%03X.",sCANMessage.ui32MsgID);
-            for (uIdx = 0; uIdx<sCANMessage.ui32MsgLen; uIdx++)
-                UARTprintf("%02X",pui8MsgData[uIdx]);
-            //UARTprintf("total count=%u\n",g_ui32MsgCount);
-            UARTprintf("\n");
-
-            //SysCtlDelay(100000);
-            GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, 0);
-            rxLedOn = 10;
-        }
-
-        // rx Led timing
-        tRxLed = TimerValueGet(TIMER0_BASE,TIMER_B);
-        rxLedOn -= (tRxLed-last_tRxLed);
-        if (rxLedOn<=0) {
-          rxLedOn = 0;
-          LED_CAN_RX_OFF();
-        }
-        else {
-          LED_CAN_RX_ON();
-        }
-        last_tRxLed = tRxLed;
-
-        //int chr = UARTCharGetNonBlocking(UART0_BASE);
-        //if (chr>=0) {
         if (UARTCharsAvail(UART0_BASE)) {
-            //char c = chr;
             char c = UARTCharGet(UART0_BASE);
-            if (c==':') {
-                // reset
-                UartRxBuffCnt=0;
-                LED_CAN_TX_ON();
-            }
-            else if ((c=='\r')||(c=='\n')) {
-                // insert end of string
-                UartRxBuff[UartRxBuffCnt]='\0';
-                LED_CAN_TX_OFF();
-            }
-            else {
-                UartRxBuff[UartRxBuffCnt++] = c;
-            }
+            UARTCharPut(UART0_BASE,c);
         }
-        /*static int cnt = 0;
-        UARTprintf("ahoj vole %d\n",cnt++);
-        //
-        // Set the GPIO high.
-        //
-        ROM_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
 
-        //
-        // Delay for a while.
-        //
-        ROM_SysCtlDelay(1000000);
+        if (MOTOR_FLT) LED_RED_ON(); else LED_RED_OFF();
 
-        //
-        // Set the GPIO low.
-        //
-        ROM_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, 0);
-
-        //
-        // Delay for a while.
-        //
-        ROM_SysCtlDelay(10000000);*/
+        if (tNow&0x1000) MOTOR_PUL_H(); else MOTOR_PUL_L();
     }
 }

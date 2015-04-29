@@ -51,7 +51,7 @@ static void NmiSR(void);
 static void FaultISR(void);
 static void IntDefaultHandler(void);
 
-extern void CANIntHandler(void);
+//extern void CANIntHandler(void);
 
 //*****************************************************************************
 //
@@ -132,7 +132,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // Timer 3 subtimer B
     IntDefaultHandler,                      // I2C1 Master and Slave
     IntDefaultHandler,                      // Quadrature Encoder 1
-    CANIntHandler,                      // CAN0
+    IntDefaultHandler,                      // CAN0
     IntDefaultHandler,                      // CAN1
     0,                                      // Reserved
     0,                                      // Reserved
