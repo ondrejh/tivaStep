@@ -29,7 +29,6 @@ LIBS:opto
 LIBS:atmel
 LIBS:contrib
 LIBS:valves
-LIBS:tivastep-cache
 EELAYER 25 0
 EELAYER END
 $Descr A4 11693 8268
@@ -604,17 +603,17 @@ Text Notes 10000 3000 0    60   ~ 0
 PUL-
 Text Notes 10000 2900 0    60   ~ 0
 PUL+/DIR+/ENA+
-Text Label 8600 2600 0    60   ~ 0
+Text Label 8150 2000 0    31   ~ 0
 PUL+/DIR+/ENA+
-Text Label 9400 2750 0    60   ~ 0
+Text Label 9300 2700 0    31   ~ 0
 PUL+/DIR+/ENA+
-Text Label 8650 2850 0    60   ~ 0
+Text Label 8450 2850 0    31   ~ 0
 PUL-
-Text Label 8650 3050 0    60   ~ 0
+Text Label 8450 3050 0    31   ~ 0
 DIR-
-Text Label 8600 3250 0    60   ~ 0
+Text Label 8450 3250 0    31   ~ 0
 ENA-
-Text Label 8600 3350 0    60   ~ 0
+Text Label 8450 3350 0    31   ~ 0
 FLT+
 Wire Wire Line
 	4300 2100 4600 2100
