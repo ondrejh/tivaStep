@@ -94,6 +94,10 @@
 #define BTN1 (GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_4)==0)
 #define BTN2 (GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_0)==0)
 
+// external switches
+#define SW1 (GPIOPinRead(GPIO_PORTC_BASE,GPIO_PIN_4)==0)
+#define SW2 (GPIOPinRead(GPIO_PORTC_BASE,GPIO_PIN_5)==0)
+
 //*****************************************************************************
 //
 // The error routine that is called if the driver library encounters an error.
@@ -196,6 +200,7 @@ int main(void)
     // enable all used peripherals
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA); // uart0, ios
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB); // ios
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC); // ios
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF); // leds
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0); // uart0
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // timer0
@@ -210,6 +215,9 @@ int main(void)
     GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4);
     GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4, 0x00);
     GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_6);
+
+    // init exteranl switches
+    GPIOPinTypeGPIOInput(GPIO_PORTC_BASE, GPIO_PIN_4|GPIO_PIN_5);
 
     // init leds
     // Enable pin PF0/4 for GPIOInput
@@ -256,19 +264,19 @@ int main(void)
         static int mstate = 0;
         switch (mstate) {
         case 0: // wait button
-            if (BTN1) {
+            if (BTN1||SW1) {
                 m.speed = -10;
                 m.run = 0;
                 mstate++;
             }
-            else if (BTN2) {
+            else if (BTN2||SW2) {
                 m.speed = 10;
                 m.run = 0;
                 mstate=4;
             }
             break;
         case 1: // accelerate backward
-            if (BTN1) {
+            if (BTN1||SW1) {
                 m.speed = accel(m.speed,-TEST_ACCEL,tDiff);
                 if (m.speed<=-TEST_SPEED) {
                     m.speed =-TEST_SPEED;
@@ -277,10 +285,10 @@ int main(void)
             } else mstate+=2;
             break;
         case 2: // go backward (full speed)
-            if (!BTN1) mstate++;
+            if (!(BTN1||SW1)) mstate++;
             break;
         case 3:
-            if (BTN1) mstate-=2;
+            if (BTN1||SW1) mstate-=2;
             else {
                 m.speed = accel(m.speed,TEST_ACCEL,tDiff);
                 if (m.speed>=-TEST_MIN_SPEED) {
@@ -290,7 +298,7 @@ int main(void)
             }
             break;
         case 4: // accelerate forward
-            if (BTN2) {
+            if (BTN2||SW2) {
                 m.speed = accel(m.speed,TEST_ACCEL,tDiff);
                 if (m.speed>=TEST_SPEED) {
                     m.speed =TEST_SPEED;
@@ -299,10 +307,10 @@ int main(void)
             } else mstate+=2;
             break;
         case 5: // go forward (full speed)
-            if (!BTN2) mstate++;
+            if (!(BTN2||SW2)) mstate++;
             break;
         case 6: // decelerate
-            if (BTN2) mstate-=2;
+            if (BTN2||SW2) mstate-=2;
             else {
                 m.speed = accel(m.speed,-TEST_ACCEL,tDiff);
                 if (m.speed<=TEST_MIN_SPEED) {
