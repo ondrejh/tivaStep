@@ -2,3 +2,4 @@ fw/gcc
 fw/*.layout
 hw/*.bak
 hw/*-cache.lib
+doc/Thumbs.db
