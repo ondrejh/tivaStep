@@ -40,6 +40,8 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 #include "inc/hw_can.h"
 #include "inc/hw_ints.h"
 #include "inc/hw_memmap.h"
@@ -122,7 +124,7 @@ void debugConsoleInit(void)
   //SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
   UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC); // use internal 16MHz osc.
   GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-  UARTStdioConfig(0, 115200, 16000000);
+  //UARTStdioConfig(0, 115200, 16000000);
 }
 
 int h2i(char c)
@@ -354,5 +356,22 @@ int main(void)
         }
 
         tLast = tNow;
+    }
+
+    // debug uart
+    if (UARTCharsAvail(UART0_BASE)) {
+        uint32_t err = UARTRxErrorGet(UART0_BASE);
+        char c = UARTCharGet(UART0_BASE);
+        if (err!=0)
+            UARTRxErrorClear(UART0_BASE);
+        else {
+            // char received without errors
+            if (c=='?') {
+                char buf[64];
+                sprintf(buf,"%.1f %.1f\n",m.speed,TEST_ACCEL);
+                //UARTwrite(buf,strlen(buf));
+            }
+            UARTCharPutNonBlocking(UART0_BASE,c); // echo
+        }
     }
 }
