@@ -75,14 +75,23 @@
 //
 //*****************************************************************************
 
-// motor ios
-#define MOTOR_ENA_H() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_4,GPIO_PIN_4);}while(0)
-#define MOTOR_ENA_L() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_4,0);}while(0)
-#define MOTOR_PUL_H() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_2,GPIO_PIN_2);}while(0)
-#define MOTOR_PUL_L() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_2,0);}while(0)
-#define MOTOR_DIR_H() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_3,GPIO_PIN_3);}while(0)
-#define MOTOR_DIR_L() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_3,0);}while(0)
-#define MOTOR_FLT (GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_6)!=0)
+// motor A ios
+#define MA_ENA_H() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_4,GPIO_PIN_4);}while(0)
+#define MA_ENA_L() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_4,0);}while(0)
+#define MA_PUL_H() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_2,GPIO_PIN_2);}while(0)
+#define MA_PUL_L() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_2,0);}while(0)
+#define MA_DIR_H() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_3,GPIO_PIN_3);}while(0)
+#define MA_DIR_L() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_3,0);}while(0)
+#define MA_FLT (GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_6)!=0)
+
+// motor B ios
+#define MB_ENA_H() do{GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_5,GPIO_PIN_5);}while(0)
+#define MB_ENA_L() do{GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_5,0);}while(0)
+#define MB_PUL_H() do{GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_7,GPIO_PIN_7);}while(0)
+#define MB_PUL_L() do{GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_7,0);}while(0)
+#define MB_DIR_H() do{GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_6,GPIO_PIN_6);}while(0)
+#define MB_DIR_L() do{GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_6,0);}while(0)
+#define MB_FLT (GPIOPinRead(GPIO_PORTC_BASE,GPIO_PIN_4)!=0)
 
 // onboard leds
 #define LED_RED_ON() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,GPIO_PIN_1);}while(0)
@@ -97,8 +106,10 @@
 #define BTN2 (GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_0)==0)
 
 // external switches
-#define SW1 (GPIOPinRead(GPIO_PORTC_BASE,GPIO_PIN_4)==0)
-#define SW2 (GPIOPinRead(GPIO_PORTC_BASE,GPIO_PIN_5)==0)
+#define SW1 (GPIOPinRead(GPIO_PORTD_BASE,GPIO_PIN_0)==0)
+#define SW2 (GPIOPinRead(GPIO_PORTD_BASE,GPIO_PIN_1)==0)
+#define SW3 (GPIOPinRead(GPIO_PORTD_BASE,GPIO_PIN_2)==0)
+#define SW4 (GPIOPinRead(GPIO_PORTD_BASE,GPIO_PIN_3)==0)
 
 //*****************************************************************************
 //
@@ -146,6 +157,10 @@ typedef struct {
     uint32_t step_ticks; // number of ticks per one step
     uint32_t step_timer; // timer counter to calculate steps
     int run; // 0 stop, 1 forward, -1 backward
+
+    void (*do_step)();
+    void (*set_enable)(_Bool);
+    void (*set_dir)(_Bool);
 } motor_t;
 
 uint32_t spd2ticks(float speed)
@@ -173,23 +188,37 @@ float accel(float spd, float acl, uint32_t dt)
     return (spd + (acl*dt/TICKS_PER_SECOND));
 }
 
+void mA_do_step(void) {MA_PUL_H();wait_micros(5);MA_PUL_L();}
+void mA_set_dir(bool dir) {if (dir) {MA_DIR_H();} else {MA_DIR_L();}wait_micros(5);}
+void mA_set_ena(bool ena) {if (ena) {MA_ENA_L();} else {MA_ENA_H();}}
+
+void mB_step(void) {MB_PUL_H();wait_micros(5);MB_PUL_L();}
+void mB_set_dir(bool dir) {if (dir) {MB_DIR_H();} else {MB_DIR_L();}wait_micros(5);}
+void mB_set_ena(bool ena) {if (ena) {MB_ENA_L();} else {MB_ENA_H();}}
+
+void motor_init(motor_t *m, void (*do_step)(), void (*set_enable)(_Bool), void (*set_direction)(_Bool))
+{
+    // init variables
+    //m.enable = false;
+    m->speed = 0; // Hz
+    m->step_timer = 0;
+    m->run = 0;
+
+    // init output functions
+    m->do_step = do_step;
+    m->set_enable = set_enable;
+    m->set_dir = set_direction;
+}
+
 void motor_step(motor_t *m, bool dir)
 {
     if ((m->run==0) || ((m->run==1)&&(dir==false)) || ((m->run==-1)&&(dir==true)))
     {
-        if (dir) {
-            MOTOR_DIR_H();
-            m->run=1;
-        } else {
-            MOTOR_DIR_L();
-            m->run=-1;
-        };
-        wait_micros(5);
+        m->run=dir?1:-1;
+        m->set_dir(dir);
     }
 
-    MOTOR_PUL_H();
-    wait_micros(5);
-    MOTOR_PUL_L();
+    m->do_step();
 }
 
 #define TEST_SPEED 2000.0
@@ -203,6 +232,7 @@ int main(void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA); // uart0, ios
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB); // ios
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC); // ios
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD); // ios
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF); // leds
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0); // uart0
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // timer0
@@ -214,12 +244,15 @@ int main(void)
     debugConsoleInit();
 
     // init motor ios
-    GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4);
-    GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4, 0x00);
-    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_6);
+    GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE,GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4); // motor A PUL,DIR,ENA
+    GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4, 0x00); // PUL,DIR,ENA <- 'L'
+    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE,GPIO_PIN_6); // motor A FLT (input)
+    GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE,GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7); // motor B ENA,DIR,PUL
+    GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7, 0x00); // PUL,DIR,ENA <- 'L'
+    GPIOPinTypeGPIOInput(GPIO_PORTC_BASE,GPIO_PIN_4); // motor B FLT (input)
 
     // init exteranl switches
-    GPIOPinTypeGPIOInput(GPIO_PORTC_BASE, GPIO_PIN_4|GPIO_PIN_5);
+    GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3);
 
     // init leds
     // Enable pin PF0/4 for GPIOInput
@@ -236,15 +269,15 @@ int main(void)
     init_timer();
 
     // pulse ENA (to clear FLT)
-    MOTOR_ENA_H();
+    MA_ENA_H();
+    MB_ENA_H();
     wait_micros(100);
-    MOTOR_ENA_L();
+    MA_ENA_L();
+    MB_ENA_L();
     wait_micros(100);
 
     motor_t m;
-    m.speed = 0; // Hz
-    m.step_timer = 0;
-    m.run = 0;
+    motor_init(&m, (mA_do_step), (mA_set_ena), (mA_set_dir));
 
     uint32_t tLast = 0;
 
@@ -259,7 +292,7 @@ int main(void)
             UARTCharPut(UART0_BASE,c);
         }
 
-        if (MOTOR_FLT) LED_RED_ON(); else LED_RED_OFF();
+        if (MA_FLT) LED_RED_ON(); else LED_RED_OFF();
 
         //if (tNow&0x1000) MOTOR_PUL_H(); else MOTOR_PUL_L();
 
