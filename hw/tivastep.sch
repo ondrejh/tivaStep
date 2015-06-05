@@ -1967,4 +1967,6 @@ Wire Wire Line
 	2300 1300 2100 1300
 Wire Wire Line
 	2100 1400 2300 1400
+Text Notes 7000 6750 0    60   ~ 0
+NOTE: 0Ohm rezistor R9 has to be removed from Tiva C Lauchpad\n(it's connecting PB6 (mAflt) to  PD0 (btn1))
 $EndSCHEMATC
