@@ -135,7 +135,7 @@ void debugConsoleInit(void)
   //SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
   UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC); // use internal 16MHz osc.
   GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-  //UARTStdioConfig(0, 115200, 16000000);
+  UARTStdioConfig(0, 115200, 16000000);
 }
 
 int h2i(char c)
