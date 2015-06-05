@@ -192,7 +192,7 @@ void mA_do_step(void) {MA_PUL_H();wait_micros(5);MA_PUL_L();}
 void mA_set_dir(bool dir) {if (dir) {MA_DIR_H();} else {MA_DIR_L();}wait_micros(5);}
 void mA_set_ena(bool ena) {if (ena) {MA_ENA_L();} else {MA_ENA_H();}}
 
-void mB_step(void) {MB_PUL_H();wait_micros(5);MB_PUL_L();}
+void mB_do_step(void) {MB_PUL_H();wait_micros(5);MB_PUL_L();}
 void mB_set_dir(bool dir) {if (dir) {MB_DIR_H();} else {MB_DIR_L();}wait_micros(5);}
 void mB_set_ena(bool ena) {if (ena) {MB_ENA_L();} else {MB_ENA_H();}}
 
@@ -276,8 +276,9 @@ int main(void)
     MB_ENA_L();
     wait_micros(100);
 
-    motor_t m;
-    motor_init(&m, (mA_do_step), (mA_set_ena), (mA_set_dir));
+    motor_t m1,m2;
+    motor_init(&m1, (mA_do_step), (mA_set_ena), (mA_set_dir));
+    motor_init(&m2, (mB_do_step), (mB_set_ena), (mB_set_dir));
 
     uint32_t tLast = 0;
 
@@ -287,124 +288,182 @@ int main(void)
         uint32_t tNow = get_fast_ticks();
         uint32_t tDiff = tNow-tLast;
 
-        if (UARTCharsAvail(UART0_BASE)) {
-            char c = UARTCharGet(UART0_BASE);
-            UARTCharPut(UART0_BASE,c);
-        }
+        if (MA_FLT||MB_FLT) {LED_RED_ON();} else {LED_RED_OFF();}
 
-        if (MA_FLT) LED_RED_ON(); else LED_RED_OFF();
-
-        //if (tNow&0x1000) MOTOR_PUL_H(); else MOTOR_PUL_L();
-
-        static int mstate = 0;
-        switch (mstate) {
+        static int m1seqv = 0;
+        switch (m1seqv) {
         case 0: // wait button
             if (BTN1||SW1) {
-                m.speed = -10;
-                m.run = 0;
-                mstate++;
+                m1.speed = -10;
+                m1.run = 0;
+                m1seqv++;
             }
             else if (BTN2||SW2) {
-                m.speed = 10;
-                m.run = 0;
-                mstate=4;
+                m1.speed = 10;
+                m1.run = 0;
+                m1seqv=4;
             }
             break;
         case 1: // accelerate backward
             if (BTN1||SW1) {
-                m.speed = accel(m.speed,-TEST_ACCEL,tDiff);
-                if (m.speed<=-TEST_SPEED) {
-                    m.speed =-TEST_SPEED;
-                    mstate++;
+                m1.speed = accel(m1.speed,-TEST_ACCEL,tDiff);
+                if (m1.speed<=-TEST_SPEED) {
+                    m1.speed =-TEST_SPEED;
+                    m1seqv++;
                 }
-            } else mstate+=2;
+            } else m1seqv+=2;
             break;
         case 2: // go backward (full speed)
-            if (!(BTN1||SW1)) mstate++;
+            if (!(BTN1||SW1)) m1seqv++;
             break;
         case 3:
-            if (BTN1||SW1) mstate-=2;
+            if (BTN1||SW1) m1seqv-=2;
             else {
-                m.speed = accel(m.speed,TEST_ACCEL,tDiff);
-                if (m.speed>=-TEST_MIN_SPEED) {
-                    m.speed = 0.0;
-                    mstate = 0;
+                m1.speed = accel(m1.speed,TEST_ACCEL,tDiff);
+                if (m1.speed>=-TEST_MIN_SPEED) {
+                    m1.speed = 0.0;
+                    m1seqv = 0;
                 }
             }
             break;
         case 4: // accelerate forward
             if (BTN2||SW2) {
-                m.speed = accel(m.speed,TEST_ACCEL,tDiff);
-                if (m.speed>=TEST_SPEED) {
-                    m.speed =TEST_SPEED;
-                    mstate++;
+                m1.speed = accel(m1.speed,TEST_ACCEL,tDiff);
+                if (m1.speed>=TEST_SPEED) {
+                    m1.speed =TEST_SPEED;
+                    m1seqv++;
                 }
-            } else mstate+=2;
+            } else m1seqv+=2;
             break;
         case 5: // go forward (full speed)
-            if (!(BTN2||SW2)) mstate++;
+            if (!(BTN2||SW2)) m1seqv++;
             break;
         case 6: // decelerate
-            if (BTN2||SW2) mstate-=2;
+            if (BTN2||SW2) m1seqv-=2;
             else {
-                m.speed = accel(m.speed,-TEST_ACCEL,tDiff);
-                if (m.speed<=TEST_MIN_SPEED) {
-                    m.speed = 0.0;
-                    mstate = 0;
+                m1.speed = accel(m1.speed,-TEST_ACCEL,tDiff);
+                if (m1.speed<=TEST_MIN_SPEED) {
+                    m1.speed = 0.0;
+                    m1seqv = 0;
                 }
             }
             break;
         default:
-            mstate = 0;
+            m1seqv = 0;
             break;
         }
 
-        if (m.speed!=0) {
-            m.step_ticks=spd2ticks(m.speed);
-            m.step_timer+=tDiff;
-            if (m.step_timer>=m.step_ticks) {
-                motor_step(&m,(m.speed>0));
-                m.step_timer-=m.step_ticks;
+        static int m2seqv = 0;
+        switch (m2seqv) {
+        case 0: // wait button
+            if (SW3) {
+                m2.speed = -10;
+                m2.run = 0;
+                m2seqv++;
             }
-        } else {
-            m.step_timer=0;
-            m.run=0;
-        }
-
-        switch (m.run) {
-        case 0:
-            LED_BLUE_OFF();
-            LED_GREEN_OFF();
+            else if (SW4) {
+                m2.speed = 10;
+                m2.run = 0;
+                m2seqv=4;
+            }
             break;
-        case 1:
-            LED_GREEN_ON();
-            LED_BLUE_OFF();
+        case 1: // accelerate backward
+            if (SW3) {
+                m2.speed = accel(m2.speed,-TEST_ACCEL,tDiff);
+                if (m2.speed<=-TEST_SPEED) {
+                    m2.speed =-TEST_SPEED;
+                    m2seqv++;
+                }
+            } else m2seqv+=2;
             break;
-        case -1:
-            LED_GREEN_OFF();
-            LED_BLUE_ON();
+        case 2: // go backward (full speed)
+            if (!(SW3)) m2seqv++;
+            break;
+        case 3:
+            if (SW3) m2seqv-=2;
+            else {
+                m2.speed = accel(m2.speed,TEST_ACCEL,tDiff);
+                if (m2.speed>=-TEST_MIN_SPEED) {
+                    m2.speed = 0.0;
+                    m2seqv = 0;
+                }
+            }
+            break;
+        case 4: // accelerate forward
+            if (SW4) {
+                m2.speed = accel(m2.speed,TEST_ACCEL,tDiff);
+                if (m2.speed>=TEST_SPEED) {
+                    m2.speed =TEST_SPEED;
+                    m2seqv++;
+                }
+            } else m2seqv+=2;
+            break;
+        case 5: // go forward (full speed)
+            if (!(SW4)) m2seqv++;
+            break;
+        case 6: // decelerate
+            if (SW4) m2seqv-=2;
+            else {
+                m2.speed = accel(m2.speed,-TEST_ACCEL,tDiff);
+                if (m2.speed<=TEST_MIN_SPEED) {
+                    m2.speed = 0.0;
+                    m2seqv = 0;
+                }
+            }
             break;
         default:
+            m2seqv = 0;
             break;
         }
 
-        tLast = tNow;
-    }
-
-    // debug uart
-    if (UARTCharsAvail(UART0_BASE)) {
-        uint32_t err = UARTRxErrorGet(UART0_BASE);
-        char c = UARTCharGet(UART0_BASE);
-        if (err!=0)
-            UARTRxErrorClear(UART0_BASE);
-        else {
-            // char received without errors
-            if (c=='?') {
-                char buf[64];
-                sprintf(buf,"%.1f %.1f\n",m.speed,TEST_ACCEL);
-                //UARTwrite(buf,strlen(buf));
+        if (m1.speed!=0) {
+            m1.step_ticks=spd2ticks(m1.speed);
+            m1.step_timer+=tDiff;
+            if (m1.step_timer>=m1.step_ticks) {
+                motor_step(&m1,(m1.speed>0));
+                m1.step_timer-=m1.step_ticks;
             }
-            UARTCharPutNonBlocking(UART0_BASE,c); // echo
+        } else {
+            m1.step_timer=0;
+            m1.run=0;
         }
+
+        if (m2.speed!=0) {
+            m2.step_ticks=spd2ticks(m2.speed);
+            m2.step_timer+=tDiff;
+            if (m2.step_timer>=m2.step_ticks) {
+                motor_step(&m2,(m2.speed>0));
+                m2.step_timer-=m2.step_ticks;
+            }
+        } else {
+            m2.step_timer=0;
+            m2.run=0;
+        }
+
+        if (m1.run) {LED_BLUE_ON();} else {LED_BLUE_OFF();}
+        if (m2.run) {LED_GREEN_ON();} else {LED_GREEN_OFF();}
+
+        tLast = tNow;
+
+        // debug uart
+        if (UARTCharsAvail(UART0_BASE)) {
+            char c = UARTCharGet(UART0_BASE);
+            UARTCharPut(UART0_BASE,c);
+        }
+        /*if (UARTCharsAvail(UART0_BASE)) {
+            uint32_t err = UARTRxErrorGet(UART0_BASE);
+            char c = UARTCharGet(UART0_BASE);
+            if (err!=0)
+                UARTRxErrorClear(UART0_BASE);
+            else {
+                // char received without errors
+                if (c=='?') {
+                    char buf[64];
+                    sprintf(buf,"%.1f %.1f\n",m1.speed,TEST_ACCEL);
+                    //UARTwrite(buf,strlen(buf));
+                }
+                UARTCharPutNonBlocking(UART0_BASE,c); // echo
+            }
+        }*/
     }
 }
