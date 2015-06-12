@@ -136,6 +136,13 @@ void debugConsoleInit(void)
   UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC); // use internal 16MHz osc.
   GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
   UARTStdioConfig(0, 115200, 16000000);
+
+  // uart1
+  GPIOPinConfigure(GPIO_PB0_U1RX);
+  GPIOPinConfigure(GPIO_PB1_U1TX);
+  UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
+  GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+  UARTStdioConfig(0, 115200, 16000000);
 }
 
 int h2i(char c)
@@ -235,6 +242,7 @@ int main(void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD); // ios
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF); // leds
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0); // uart0
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1); // uart1
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // timer0
 
     // init clock
@@ -449,6 +457,11 @@ int main(void)
         if (UARTCharsAvail(UART0_BASE)) {
             char c = UARTCharGet(UART0_BASE);
             UARTCharPut(UART0_BASE,c);
+        }
+
+        if (UARTCharsAvail(UART1_BASE)) {
+            char c = UARTCharGet(UART1_BASE);
+            UARTCharPut(UART1_BASE,c);
         }
         /*if (UARTCharsAvail(UART0_BASE)) {
             uint32_t err = UARTRxErrorGet(UART0_BASE);
