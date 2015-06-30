@@ -4,7 +4,7 @@ from crc16 import checkCRC16,getCRC16
 #portName = '/dev/ttyUSB0'
 portName = 'COM25'
 baudRate = 19200
-portTimeout = 0.02
+portTimeout = 0.1
 
 
 def showBytes(data,end=None):
@@ -36,9 +36,12 @@ def readParams(port,id,addr,count):
 
     answ = port.read(256)
 
+    #print(answ)
+
     if len(answ)<2:
         return('ERROR: answer error !!!')
 
+    #print(getCRC16(answ))
     if checkCRC16(answ):
 
         cnt = int(answ[2]/2)
@@ -67,5 +70,6 @@ def checkPresence(port,id):
 if __name__ == "__main__":
 
     with serial.Serial(portName,baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=portTimeout) as port:
+    #with serial.Serial(portName,baudRate,bytesize=8,parity=serial.PARITY_NONE,timeout=portTimeout) as port:
 
         print(readParams(port,1,0,1))

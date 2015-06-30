@@ -134,14 +134,13 @@ void debugConsoleInit(void)
 
   // enable UART0
   //SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
-  UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC); // use internal 16MHz osc.
+  UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 19200, UART_CONFIG_WLEN_8|UART_CONFIG_PAR_NONE|UART_CONFIG_STOP_TWO);
   GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-  UARTStdioConfig(0, 19200, 16000000);
 
   // uart1
   GPIOPinConfigure(GPIO_PB0_U1RX);
   GPIOPinConfigure(GPIO_PB1_U1TX);
-  UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
+  UARTClockSourceSet(UART1_BASE, UART_CLOCK_PIOSC);
   GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
   UARTStdioConfig(1, 19200, 16000000);
 }
@@ -465,6 +464,9 @@ int main(void)
             last_trx = trx_now;
             //UARTCharPut(UART0_BASE,c);
         }
+        if (mb_tx_char_avail()>0) {
+            UARTCharPut(UART0_BASE,mb_tx_char_get());
+        } else {LED_RED_OFF();}
 
         if (UARTCharsAvail(UART1_BASE)) {
             char c = UARTCharGet(UART1_BASE);
