@@ -53,6 +53,24 @@ def readParams(port,id,addr,count):
     else:
         return('ERROR: CRC check failed !!!')
 
+def writeParams(port,id,addr,count,data):
+
+    ''' write multiple parameters (modbus) '''
+
+    msg = bytes([id,16,addr>>8,addr&0xFF,count>>8,count&0xFF,count*2])
+    for d in data:
+        msg += bytes([d>>8,d&0xFF])
+    msg = addCRC16(msg)
+    port.write(msg)
+
+    answ = port.read(256)
+
+    if len(answ)<2:
+        return('ERROR: answer error !!!')
+
+    if checkCRC16(answ):
+        return('OK')
+        
     
 def checkPresence(port,id):
 
@@ -70,6 +88,6 @@ def checkPresence(port,id):
 if __name__ == "__main__":
 
     with serial.Serial(portName,baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=portTimeout) as port:
-    #with serial.Serial(portName,baudRate,bytesize=8,parity=serial.PARITY_NONE,timeout=portTimeout) as port:
 
-        print(readParams(port,1,0,1))
+        print(writeParams(port,1,0,3,[0x1234,0x4321,0xABCD]))
+        print(readParams(port,1,0,3))

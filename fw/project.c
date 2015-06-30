@@ -455,19 +455,19 @@ int main(void)
 
         tLast = tNow;
 
-        // debug uart
+        //  uart 0 modbus
         if (UARTCharsAvail(UART0_BASE)) {
             static uint32_t last_trx = 0;
             uint32_t trx_now = get_fast_ticks();
             char c = UARTCharGet(UART0_BASE);
-            mbrtu_recv(c,(trx_now-last_trx)>>4);
+            mbrtu_recv_char(c,(trx_now-last_trx)>>4);
             last_trx = trx_now;
-            //UARTCharPut(UART0_BASE,c);
         }
         if (mb_tx_char_avail()>0) {
             UARTCharPut(UART0_BASE,mb_tx_char_get());
-        } else {LED_RED_OFF();}
+        }
 
+        // uart 1 echo
         if (UARTCharsAvail(UART1_BASE)) {
             char c = UARTCharGet(UART1_BASE);
             UARTCharPut(UART1_BASE,c);
