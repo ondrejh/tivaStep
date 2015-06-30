@@ -24,6 +24,12 @@
 			<Add option="-Wall" />
 		</Compiler>
 		<Unit filename="Makefile" />
+		<Unit filename="crc16.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="mbrtu_serv.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="project.c">
 			<Option compilerVar="CC" />
 		</Unit>

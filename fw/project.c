@@ -59,6 +59,7 @@
 #include "utils/uartstdio.h"
 
 #include "timer.c"
+#include "mbrtu_serv.c"
 
 //*****************************************************************************
 //
@@ -135,14 +136,14 @@ void debugConsoleInit(void)
   //SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
   UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC); // use internal 16MHz osc.
   GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-  UARTStdioConfig(0, 115200, 16000000);
+  UARTStdioConfig(0, 19200, 16000000);
 
   // uart1
   GPIOPinConfigure(GPIO_PB0_U1RX);
   GPIOPinConfigure(GPIO_PB1_U1TX);
   UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
   GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-  UARTStdioConfig(0, 115200, 16000000);
+  UARTStdioConfig(1, 19200, 16000000);
 }
 
 int h2i(char c)
@@ -250,8 +251,10 @@ int main(void)
 
     // init serial console
     debugConsoleInit();
+    mbrtu_init(); // init data table
 
     // init motor ios
+    // note: don't forget to remove R9, R10 from Tiva C launchpad board !!!
     GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE,GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4); // motor A PUL,DIR,ENA
     GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4, 0x00); // PUL,DIR,ENA <- 'L'
     GPIOPinTypeGPIOInput(GPIO_PORTB_BASE,GPIO_PIN_6); // motor A FLT (input)
@@ -296,7 +299,7 @@ int main(void)
         uint32_t tNow = get_fast_ticks();
         uint32_t tDiff = tNow-tLast;
 
-        if (MA_FLT||MB_FLT) {LED_RED_ON();} else {LED_RED_OFF();}
+        //if (MA_FLT||MB_FLT) {LED_RED_ON();} else {LED_RED_OFF();}
 
         static int m1seqv = 0;
         switch (m1seqv) {
@@ -448,15 +451,19 @@ int main(void)
             m2.run=0;
         }
 
-        if (m1.run) {LED_BLUE_ON();} else {LED_BLUE_OFF();}
-        if (m2.run) {LED_GREEN_ON();} else {LED_GREEN_OFF();}
+        /*if (m1.run) {LED_BLUE_ON();} else {LED_BLUE_OFF();}
+        if (m2.run) {LED_GREEN_ON();} else {LED_GREEN_OFF();}*/
 
         tLast = tNow;
 
         // debug uart
         if (UARTCharsAvail(UART0_BASE)) {
+            static uint32_t last_trx = 0;
+            uint32_t trx_now = get_fast_ticks();
             char c = UARTCharGet(UART0_BASE);
-            UARTCharPut(UART0_BASE,c);
+            mbrtu_recv(c,(trx_now-last_trx)>>4);
+            last_trx = trx_now;
+            //UARTCharPut(UART0_BASE,c);
         }
 
         if (UARTCharsAvail(UART1_BASE)) {
