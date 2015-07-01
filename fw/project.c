@@ -244,6 +244,7 @@ int main(void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0); // uart0
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1); // uart1
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // timer0
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0); // eeprom
 
     // init clock
     SysCtlClockSet(SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
