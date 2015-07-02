@@ -167,7 +167,7 @@ typedef struct {
     int run; // 0 stop, 1 forward, -1 backward
 
     // help variables - calculate position and speed
-    uint32_t posA;
+    uint32_t u32A,u32B;
     float spdA,spdB;
 
     // program values
@@ -198,8 +198,9 @@ float ramp(float spdA, float spdB, uint32_t timA, uint32_t timB, uint32_t timN)
 {
     float spdAB = spdB-spdA;
     uint32_t timAB = timB-timA;
+    uint32_t timAN = timN-timA;
 
-    return spdA + spdAB*((float)timN/(float)timAB);
+    return (spdA + (spdAB*timAN/timAB));
 }
 
 float accel(float spd, float acl, uint32_t dt)
@@ -251,8 +252,11 @@ void motor_step(motor_t *m, bool dir)
 #define TEST_ACCEL 5000.0
 #define TEST_MIN_SPEED 10.0
 
-#define M1_PROG_OFFSET 4
-#define M2_PROG_OFFSET 30
+#define M1_PROG1_OFFSET 8
+#define M2_PROG1_OFFSET 26
+#define M1_PROG2_OFFSET 44
+#define M2_PROG2_OFFSET 62
+
 
 
 // main program
@@ -328,6 +332,7 @@ int main(void)
 
         //if (MA_FLT||MB_FLT) {LED_RED_ON();} else {LED_RED_OFF();}
 
+        static int m2seqv = 0;
         static int m1seqv = 0;
         switch (m1seqv) {
         case 0: // wait button
@@ -342,6 +347,7 @@ int main(void)
                 m1seqv=4;
             }
             else if (BTN1) {
+                LED_BLUE_ON();
                 m1.speed = 0;
                 m1.run = 0;
                 m1.prog = 0;
@@ -393,26 +399,30 @@ int main(void)
             }
             break;
         case 10: // load program step
-            ptr = m1.prog*2+M1_PROG_OFFSET;
+            ptr = m1.prog*2+M1_PROG1_OFFSET;
             m1.ptype = (mbData[ptr])>>14;
             m1.pval1 = mbData[ptr++]&0x3FFF;
             m1.pval2 = mbData[ptr];
             m1.prog++;
             switch (m1.ptype) {
             case 0:
-                m1.speed = 0;
-                m1seqv = 0;
-                //LED_BLUE_OFF();
+                m1seqv += 2;
                 break;
             case 1:
                 m1.speed = (float)m1.pval2;
                 gtimer_start(&prog_timer_m1,m1.pval1*TICKS_PER_MILISEC);
                 m1seqv++;
-                //LED_BLUE_ON();
                 break;
             case 2:
-                m1.posA = m1.position;
+                m1.u32A = m1.position;
                 m1.speed = (float)m1.pval2;
+                m1seqv++;
+                break;
+            case 3:
+                m1.spdA = m1.speed;
+                m1.spdB = (float)m1.pval2;
+                m1.u32A = tNow;
+                m1.u32B = tNow+m1.pval1*TICKS_PER_MILISEC;
                 m1seqv++;
                 break;
             }
@@ -425,17 +435,96 @@ int main(void)
                 break;
             case 2:
                 if (m1.speed>0) {
-                    if ((m1.position-m1.posA)>=m1.pval1)
+                    if ((m1.position-m1.u32A)>=m1.pval1)
                         m1seqv--;
                 } else if (m1.speed<0) {
-                    if ((m1.posA-m1.position)>=m1.pval1)
+                    if ((m1.u32A-m1.position)>=m1.pval1)
                         m1seqv--;
                 } else
                     m1seqv--;
                 break;
+            case 3:
+                if ((int32_t)(m1.u32B-tNow)>0) {
+                    m1.speed = ramp(m1.spdA,m1.spdB,m1.u32A,m1.u32B,tNow);
+                } else {
+                    m1.speed = m1.spdB;
+                    m1seqv--;
+                }
+                break;
             default:
                 m1seqv--;
                 break;
+            }
+            break;
+        case 12: // wait btn1 to execute the second programme
+            if ((BTN1) && (m2seqv>11)) {
+                m1.prog = 0;
+                m1seqv++;
+            }
+            break;
+        case 13:
+            ptr = m1.prog*2+M1_PROG2_OFFSET;
+            m1.ptype = (mbData[ptr])>>14;
+            m1.pval1 = mbData[ptr++]&0x3FFF;
+            m1.pval2 = mbData[ptr];
+            m1.prog++;
+            switch (m1.ptype) {
+            case 0:
+                m1.speed = 0;
+                m1seqv += 2;
+                LED_BLUE_OFF();
+                break;
+            case 1:
+                m1.speed = (float)m1.pval2;
+                gtimer_start(&prog_timer_m1,m1.pval1*TICKS_PER_MILISEC);
+                m1seqv++;
+                break;
+            case 2:
+                m1.u32A = m1.position;
+                m1.speed = (float)m1.pval2;
+                m1seqv++;
+                break;
+            case 3:
+                m1.spdA = m1.speed;
+                m1.spdB = (float)m1.pval2;
+                m1.u32A = tNow;
+                m1.u32B = tNow+m1.pval1*TICKS_PER_MILISEC;
+                m1seqv++;
+                break;
+            }
+            break;
+        case 14: // test if program step done
+            switch (m1.ptype) {
+            case 1:
+                if (gtimer_timeout(&prog_timer_m1))
+                    m1seqv--;
+                break;
+            case 2:
+                if (m1.speed>0) {
+                    if ((m1.position-m1.u32A)>=m1.pval1)
+                        m1seqv--;
+                } else if (m1.speed<0) {
+                    if ((m1.u32A-m1.position)>=m1.pval1)
+                        m1seqv--;
+                } else
+                    m1seqv--;
+                break;
+            case 3:
+                if ((int32_t)(m1.u32B-tNow)>0) {
+                    m1.speed = ramp(m1.spdA,m1.spdB,m1.u32A,m1.u32B,tNow);
+                } else {
+                    m1.speed = m1.spdB;
+                    m1seqv--;
+                }
+                break;
+            default:
+                m1seqv--;
+                break;
+            }
+            break;
+        case 15:
+            if (!BTN1) {
+                m1seqv = 0;
             }
             break;
         default:
@@ -443,7 +532,6 @@ int main(void)
             break;
         }
 
-        static int m2seqv = 0;
         switch (m2seqv) {
         case 0: // wait button
             if (SW3) {
@@ -508,26 +596,30 @@ int main(void)
             }
             break;
         case 10: // load program step
-            ptr = m2.prog*2+M2_PROG_OFFSET;
+            ptr = m2.prog*2+M2_PROG1_OFFSET;
             m2.ptype = mbData[ptr]>>14;
             m2.pval1 = mbData[ptr++]&0x3FFF;
             m2.pval2 = mbData[ptr];
             m2.prog++;
             switch (m2.ptype) {
             case 0:
-                m2.speed = 0;
-                m2seqv = 0;
-                LED_BLUE_OFF();
+                m2seqv += 2;
                 break;
             case 1:
                 m2.speed = (float)m2.pval2;
                 gtimer_start(&prog_timer_m2,m2.pval1*TICKS_PER_MILISEC);
                 m2seqv++;
-                LED_BLUE_ON();
                 break;
             case 2:
-                m2.posA = m2.position;
+                m2.u32A = m2.position;
                 m2.speed = (float)m2.pval2;
+                m2seqv++;
+                break;
+            case 3:
+                m2.spdA = m2.speed;
+                m2.spdB = (float)m2.pval2;
+                m2.u32A = tNow;
+                m2.u32B = tNow+m2.pval1*TICKS_PER_MILISEC;
                 m2seqv++;
                 break;
             }
@@ -540,16 +632,97 @@ int main(void)
                 break;
             case 2:
                 if (m2.speed>0) {
-                    if ((m2.position-m2.posA)>=m2.pval1)
+                    if ((m2.position-m2.u32A)>=m2.pval1)
                         m2seqv--;
                 } else {
-                    if ((m2.posA-m2.position)>=m2.pval1)
+                    if ((m2.u32A-m2.position)>=m2.pval1)
                         m2seqv--;
+                }
+                break;
+            case 3:
+                if ((int32_t)(m2.u32B-tNow)>0) {
+                    m2.speed = ramp(m2.spdA,m2.spdB,m2.u32A,m2.u32B,tNow);
+                } else {
+                    m2.speed = m2.spdB;
+                    m2seqv--;
                 }
                 break;
             default:
                 m2seqv--;
                 break;
+            }
+            break;
+        case 12: // wait btn to execute second programme
+            if (m1seqv>12) {
+                m2seqv ++;
+                m2.prog = 0;
+            } else if (m1seqv==0) {
+                m2.speed = 0;
+                m2seqv = 0;
+            }
+            break;
+        case 13:
+            ptr = m2.prog*2+M2_PROG2_OFFSET;
+            m2.ptype = (mbData[ptr])>>14;
+            m2.pval1 = mbData[ptr++]&0x3FFF;
+            m2.pval2 = mbData[ptr];
+            m2.prog++;
+            switch (m2.ptype) {
+            case 0:
+                m2.speed = 0;
+                m2seqv += 2;
+                break;
+            case 1:
+                m2.speed = (float)m2.pval2;
+                gtimer_start(&prog_timer_m2,m2.pval1*TICKS_PER_MILISEC);
+                m2seqv++;
+                break;
+            case 2:
+                m2.u32A = m2.position;
+                m2.speed = (float)m2.pval2;
+                m2seqv++;
+                break;
+            case 3:
+                m2.spdA = m2.speed;
+                m2.spdB = (float)m2.pval2;
+                m2.u32A = tNow;
+                m2.u32B = tNow+m2.pval1*TICKS_PER_MILISEC;
+                m2seqv++;
+                break;
+            }
+            break;
+        case 14: // test if program step done
+            switch (m2.ptype) {
+            case 1:
+                if (gtimer_timeout(&prog_timer_m2))
+                    m2seqv--;
+                break;
+            case 2:
+                if (m2.speed>0) {
+                    if ((m2.position-m2.u32A)>=m2.pval1)
+                        m2seqv--;
+                } else if (m2.speed<0) {
+                    if ((m2.u32A-m2.position)>=m2.pval1)
+                        m2seqv--;
+                } else
+                    m2seqv--;
+                break;
+            case 3:
+                if ((int32_t)(m2.u32B-tNow)>0) {
+                    m2.speed = ramp(m2.spdA,m2.spdB,m2.u32A,m2.u32B,tNow);
+                } else {
+                    m2.speed = m2.spdB;
+                    m2seqv--;
+                }
+                break;
+            default:
+                m2seqv--;
+                break;
+            }
+            break;
+        case 15:
+            if (m1seqv==0) {
+                m2seqv = 0;
             }
             break;
         default:

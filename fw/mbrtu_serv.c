@@ -5,8 +5,7 @@
 #include "crc16.c"
 
 /* data prototypes */
-#define MBDATA_TABLE_LENGTH 40
-#define MBDATA_EEPROM_START 8
+#define MBDATA_TABLE_LENGTH 96
 uint16_t mbData[MBDATA_TABLE_LENGTH];
 
 #define MBRTU_TX_BUFF_SIZE 64
@@ -194,16 +193,16 @@ void mbrtu_recv_char(char c, uint32_t t)
 void mbrtu_init(void)
 {
     //ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
-    int eeerr = ROM_EEPROMInit();
+    //int eeerr = ROM_EEPROMInit();
 
-    if (eeerr!=0) {
+    /*if (eeerr!=0) {*/
         int i;
         for (i=0;i<MBDATA_TABLE_LENGTH;i++) {
             mbData[i]=0;
         }
-    } else {
+    /*} else {
         ROM_EEPROMRead((uint32_t*)&mbData[0],0,MBDATA_TABLE_LENGTH*2);
-    }
+    }*/
 }
 
 void mbrtu_save_eeprom(void)
