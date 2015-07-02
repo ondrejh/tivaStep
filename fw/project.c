@@ -410,11 +410,33 @@ int main(void)
                 m1seqv++;
                 //LED_BLUE_ON();
                 break;
+            case 2:
+                m1.posA = m1.position;
+                m1.speed = (float)m1.pval2;
+                m1seqv++;
+                break;
             }
             break;
         case 11: // test if program step done
-            if (gtimer_timeout(&prog_timer_m1))
+            switch (m1.ptype) {
+            case 1:
+                if (gtimer_timeout(&prog_timer_m1))
+                    m1seqv--;
+                break;
+            case 2:
+                if (m1.speed>0) {
+                    if ((m1.position-m1.posA)>=m1.pval1)
+                        m1seqv--;
+                } else if (m1.speed<0) {
+                    if ((m1.posA-m1.position)>=m1.pval1)
+                        m1seqv--;
+                } else
+                    m1seqv--;
+                break;
+            default:
                 m1seqv--;
+                break;
+            }
             break;
         default:
             m1seqv = 0;
@@ -503,11 +525,32 @@ int main(void)
                 m2seqv++;
                 LED_BLUE_ON();
                 break;
+            case 2:
+                m2.posA = m2.position;
+                m2.speed = (float)m2.pval2;
+                m2seqv++;
+                break;
             }
             break;
         case 11: // test if program step done
-            if (gtimer_timeout(&prog_timer_m2))
+            switch (m2.ptype) {
+            case 1:
+                if (gtimer_timeout(&prog_timer_m2))
+                    m2seqv--;
+                break;
+            case 2:
+                if (m2.speed>0) {
+                    if ((m2.position-m2.posA)>=m2.pval1)
+                        m2seqv--;
+                } else {
+                    if ((m2.posA-m2.position)>=m2.pval1)
+                        m2seqv--;
+                }
+                break;
+            default:
                 m2seqv--;
+                break;
+            }
             break;
         default:
             m2seqv = 0;
