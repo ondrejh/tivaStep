@@ -163,13 +163,20 @@ typedef struct {
     float speed;
     uint32_t step_ticks; // number of ticks per one step
     uint32_t step_timer; // timer counter to calculate steps
+    uint32_t position;
     int run; // 0 stop, 1 forward, -1 backward
 
-    int prog;
-    uint16_t prog_val_0;
-    uint16_t prog_val_1;
-    uint16_t prog_val_2;
+    // help variables - calculate position and speed
+    uint32_t posA;
+    float spdA,spdB;
 
+    // program values
+    int prog;
+    uint8_t ptype;
+    uint16_t pval1;
+    int16_t pval2;
+
+    // function pointer placeholders
     void (*do_step)();
     void (*set_enable)(_Bool);
     void (*set_dir)(_Bool);
@@ -214,11 +221,13 @@ void motor_init(motor_t *m, void (*do_step)(), void (*set_enable)(_Bool), void (
     //m.enable = false;
     m->speed = 0; // Hz
     m->step_timer = 0;
+    m->position = 0;
     m->run = 0;
 
     m->prog = 0;
-    m->prog_val_1 = 0;
-    m->prog_val_2 = 0;
+    m->ptype = 0;
+    m->pval1 = 0;
+    m->pval2 = 0;
 
     // init output functions
     m->do_step = do_step;
@@ -234,12 +243,17 @@ void motor_step(motor_t *m, bool dir)
         m->set_dir(dir);
     }
 
+    m->position+=m->run;
     m->do_step();
 }
 
 #define TEST_SPEED 2000.0
 #define TEST_ACCEL 5000.0
 #define TEST_MIN_SPEED 10.0
+
+#define M1_PROG_OFFSET 4
+#define M2_PROG_OFFSET 30
+
 
 // main program
 int main(void)
@@ -302,13 +316,15 @@ int main(void)
 
     uint32_t tLast = 0;
 
-    generic_timer_t prog_timer;
+    generic_timer_t prog_timer_m1,prog_timer_m2;
 
     // Loop forever.
     while(1)
     {
         uint32_t tNow = get_fast_ticks();
         uint32_t tDiff = tNow-tLast;
+
+        uint16_t ptr;
 
         //if (MA_FLT||MB_FLT) {LED_RED_ON();} else {LED_RED_OFF();}
 
@@ -377,24 +393,27 @@ int main(void)
             }
             break;
         case 10: // load program step
-            m1.prog_val_0 = mbData[m1.prog*3+4];
-            m1.prog_val_1 = mbData[m1.prog*3+5];
-            m1.prog_val_2 = mbData[m1.prog*3+6];
+            ptr = m1.prog*2+M1_PROG_OFFSET;
+            m1.ptype = (mbData[ptr])>>14;
+            m1.pval1 = mbData[ptr++]&0x3FFF;
+            m1.pval2 = mbData[ptr];
             m1.prog++;
-            switch (m1.prog_val_0) {
+            switch (m1.ptype) {
             case 0:
                 m1.speed = 0;
                 m1seqv = 0;
+                //LED_BLUE_OFF();
                 break;
             case 1:
-                m1.speed = (float)m1.prog_val_1;
-                gtimer_start(&prog_timer,m1.prog_val_2*TICKS_PER_MILISEC);
+                m1.speed = (float)m1.pval2;
+                gtimer_start(&prog_timer_m1,m1.pval1*TICKS_PER_MILISEC);
                 m1seqv++;
+                //LED_BLUE_ON();
                 break;
             }
             break;
         case 11: // test if program step done
-            if (gtimer_timeout(&prog_timer))
+            if (gtimer_timeout(&prog_timer_m1))
                 m1seqv--;
             break;
         default:
@@ -414,6 +433,12 @@ int main(void)
                 m2.speed = 10;
                 m2.run = 0;
                 m2seqv=4;
+            }
+            else if (m1seqv>=10) {
+                m2.speed = 0;
+                m2.run = 0;
+                m2.prog = 0;
+                m2seqv = 10;
             }
             break;
         case 1: // accelerate backward
@@ -459,6 +484,30 @@ int main(void)
                     m2seqv = 0;
                 }
             }
+            break;
+        case 10: // load program step
+            ptr = m2.prog*2+M2_PROG_OFFSET;
+            m2.ptype = mbData[ptr]>>14;
+            m2.pval1 = mbData[ptr++]&0x3FFF;
+            m2.pval2 = mbData[ptr];
+            m2.prog++;
+            switch (m2.ptype) {
+            case 0:
+                m2.speed = 0;
+                m2seqv = 0;
+                LED_BLUE_OFF();
+                break;
+            case 1:
+                m2.speed = (float)m2.pval2;
+                gtimer_start(&prog_timer_m2,m2.pval1*TICKS_PER_MILISEC);
+                m2seqv++;
+                LED_BLUE_ON();
+                break;
+            }
+            break;
+        case 11: // test if program step done
+            if (gtimer_timeout(&prog_timer_m2))
+                m2seqv--;
             break;
         default:
             m2seqv = 0;

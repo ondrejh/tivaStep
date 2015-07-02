@@ -89,5 +89,6 @@ if __name__ == "__main__":
 
     with serial.Serial(portName,baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=portTimeout) as port:
 
-        print(writeParams(port,1,0,3,[0x1234,0x4321,0xABCD]))
-        print(readParams(port,1,0,3))
+        print(writeParams(port,1,4,5,[(1<<14)|1000,500,(1<<14)|500,1000,0]))
+        print(writeParams(port,1,30,5,[(1<<14)|500,1000,(1<<14)|1000,500,0]))
+        #print(readParams(port,1,0,3))
