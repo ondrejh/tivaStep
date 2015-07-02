@@ -165,6 +165,11 @@ typedef struct {
     uint32_t step_timer; // timer counter to calculate steps
     int run; // 0 stop, 1 forward, -1 backward
 
+    int prog;
+    uint16_t prog_val_0;
+    uint16_t prog_val_1;
+    uint16_t prog_val_2;
+
     void (*do_step)();
     void (*set_enable)(_Bool);
     void (*set_dir)(_Bool);
@@ -210,6 +215,10 @@ void motor_init(motor_t *m, void (*do_step)(), void (*set_enable)(_Bool), void (
     m->speed = 0; // Hz
     m->step_timer = 0;
     m->run = 0;
+
+    m->prog = 0;
+    m->prog_val_1 = 0;
+    m->prog_val_2 = 0;
 
     // init output functions
     m->do_step = do_step;
@@ -293,6 +302,8 @@ int main(void)
 
     uint32_t tLast = 0;
 
+    generic_timer_t prog_timer;
+
     // Loop forever.
     while(1)
     {
@@ -304,19 +315,25 @@ int main(void)
         static int m1seqv = 0;
         switch (m1seqv) {
         case 0: // wait button
-            if (BTN1||SW1) {
+            if (SW1) {
                 m1.speed = -10;
                 m1.run = 0;
                 m1seqv++;
             }
-            else if (BTN2||SW2) {
+            else if (SW2) {
                 m1.speed = 10;
                 m1.run = 0;
                 m1seqv=4;
             }
+            else if (BTN1) {
+                m1.speed = 0;
+                m1.run = 0;
+                m1.prog = 0;
+                m1seqv = 10;
+            }
             break;
         case 1: // accelerate backward
-            if (BTN1||SW1) {
+            if (SW1) {
                 m1.speed = accel(m1.speed,-TEST_ACCEL,tDiff);
                 if (m1.speed<=-TEST_SPEED) {
                     m1.speed =-TEST_SPEED;
@@ -325,10 +342,10 @@ int main(void)
             } else m1seqv+=2;
             break;
         case 2: // go backward (full speed)
-            if (!(BTN1||SW1)) m1seqv++;
+            if (!(SW1)) m1seqv++;
             break;
         case 3:
-            if (BTN1||SW1) m1seqv-=2;
+            if (SW1) m1seqv-=2;
             else {
                 m1.speed = accel(m1.speed,TEST_ACCEL,tDiff);
                 if (m1.speed>=-TEST_MIN_SPEED) {
@@ -338,7 +355,7 @@ int main(void)
             }
             break;
         case 4: // accelerate forward
-            if (BTN2||SW2) {
+            if (SW2) {
                 m1.speed = accel(m1.speed,TEST_ACCEL,tDiff);
                 if (m1.speed>=TEST_SPEED) {
                     m1.speed =TEST_SPEED;
@@ -347,10 +364,10 @@ int main(void)
             } else m1seqv+=2;
             break;
         case 5: // go forward (full speed)
-            if (!(BTN2||SW2)) m1seqv++;
+            if (!(SW2)) m1seqv++;
             break;
         case 6: // decelerate
-            if (BTN2||SW2) m1seqv-=2;
+            if (SW2) m1seqv-=2;
             else {
                 m1.speed = accel(m1.speed,-TEST_ACCEL,tDiff);
                 if (m1.speed<=TEST_MIN_SPEED) {
@@ -358,6 +375,27 @@ int main(void)
                     m1seqv = 0;
                 }
             }
+            break;
+        case 10: // load program step
+            m1.prog_val_0 = mbData[m1.prog*3+4];
+            m1.prog_val_1 = mbData[m1.prog*3+5];
+            m1.prog_val_2 = mbData[m1.prog*3+6];
+            m1.prog++;
+            switch (m1.prog_val_0) {
+            case 0:
+                m1.speed = 0;
+                m1seqv = 0;
+                break;
+            case 1:
+                m1.speed = (float)m1.prog_val_1;
+                gtimer_start(&prog_timer,m1.prog_val_2*TICKS_PER_MILISEC);
+                m1seqv++;
+                break;
+            }
+            break;
+        case 11: // test if program step done
+            if (gtimer_timeout(&prog_timer))
+                m1seqv--;
             break;
         default:
             m1seqv = 0;
