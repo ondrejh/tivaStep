@@ -85,12 +85,44 @@ def checkPresence(port,id):
         return(True)
 
 
+def recalc_patern(patern):
+
+    ptrnout = []
+
+    for p in patern:
+
+        ptrnout.append((p[0]<<14)|p[1]&0xFFFF)
+        ptrnout.append(p[2]&0xFFFF)
+
+    ptrnout.append(0)
+
+    return ptrnout
+
+
 if __name__ == "__main__":
+
+    # zapred
+    patern1A = [[3,500,1000],
+                [2,1600,1000],
+                [3,500,0]]
+    patern2A = [[3,2000,1000]]
+
+    # pretrh
+    patern1B = [[3,500,-1000],
+                [2,1600,-1000],
+                [3,500,0]]
+    patern2B = [[3,100,-1000],
+                [2,1600,-1000],
+                [3,500,0]]
+
+    patern1A = recalc_patern(patern1A)
+    patern2A = recalc_patern(patern2A)
+    patern1B = recalc_patern(patern1B)
+    patern2B = recalc_patern(patern2B)
 
     with serial.Serial(portName,baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=portTimeout) as port:
 
-        print(writeParams(port,1,8,7,[(3<<14)|500,1000,(2<<14)|1600,1000,(3<<14)|500,0,0]))
-        print(writeParams(port,1,26,3,[(3<<14)|2000,1000,0]))
-        print(writeParams(port,1,44,7,[(3<<14)|500,(-1000)&0xFFFF,(2<<14)|1600,(-1000)&0xFFFF,(3<<14)|500,0,0]))
-        print(writeParams(port,1,62,7,[(3<<14)|100,(-1000)&0xFFFF,(2<<14)|1600,(-1000)&0xFFFF,(3<<14)|500,0,0]))
-        #print(readParams(port,1,0,3))
+        print(writeParams(port,1,8,len(patern1A),patern1A))
+        print(writeParams(port,1,26,len(patern2A),patern2A))
+        print(writeParams(port,1,44,len(patern1B),patern1B))
+        print(writeParams(port,1,62,len(patern2B),patern2B))
