@@ -4,3 +4,5 @@ hw/*.bak
 hw/*-cache.lib
 doc/Thumbs.db
 sw/__pycache__/
+sw/*.cfg
+sw/*.dat
