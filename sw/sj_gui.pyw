@@ -330,6 +330,10 @@ class app:
             try:
                 with serial.Serial(self.comVar.get(),comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
                     err = 0
+                    answ = comm.writeParams(port,1,4,4,[int(self.fdSpeedVar.get())&0xFFFF,int(self.fdAccelVar.get())&0xFFFF,
+                                                        int(self.lfSpeedVar.get())&0xFFFF,int(self.lfAccelVar.get())&0xFFFF])
+                    if answ!='OK':
+                        err+=1
                     patern=self.get_patern(self.val1)
                     patern=comm.recalc_patern(patern)
                     answ = comm.writeParams(port,1,26,len(patern),patern)
