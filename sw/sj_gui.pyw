@@ -1,7 +1,13 @@
 from tkinter import *
 import test as comm
-import serial
 import os.path
+
+serial_present = False
+try:
+    import serial
+    serial_present = True
+except:
+    pass
 
 configfilename = 'setup.cfg'
 
@@ -25,8 +31,8 @@ class app:
         comlabel = Label(companel,text='Port:')
         comlabel.grid(row=0,column=0,pady=3)
         self.comVar = StringVar(master,'COM1')
-        comentry = Entry(companel,width=10,textvariable=self.comVar)
-        comentry.grid(row=0,column=1,pady=3)
+        self.comEntry = Entry(companel,width=10,textvariable=self.comVar)
+        self.comEntry.grid(row=0,column=1,pady=3)
         
         #traverse
         traverse = LabelFrame(leftpan,text='Traverse',pady=5,padx=5)
@@ -131,6 +137,12 @@ class app:
         self.default_frame_bg = self.set1frm.cget('bg')
 
         self.load_settings()
+
+        if serial_present==False:
+            self.comEntry.config(state='disabled')
+            self.readButton.config(state='disabled')
+            self.writeButton.config(state='disabled')
+            messagebox.showwarning('Warning','No serial module found!\nProbably PYSERIAL not installed.')
 
 
     def gui_create_set(self,frame,values):
