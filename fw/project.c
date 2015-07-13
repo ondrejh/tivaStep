@@ -252,6 +252,11 @@ void motor_step(motor_t *m, bool dir)
 #define TEST_ACCEL 5000.0
 #define TEST_MIN_SPEED 10.0
 
+#define M1_TEST_SPEED_OFFSET 4
+#define M1_TEST_ACCEL_OFFSET 5
+#define M2_TEST_SPEED_OFFSET 6
+#define M2_TEST_ACCEL_OFFSET 7
+
 #define M1_PROG1_OFFSET 8
 #define M2_PROG1_OFFSET 26
 #define M1_PROG2_OFFSET 44
@@ -318,6 +323,15 @@ int main(void)
     motor_init(&m1, (mA_do_step), (mA_set_ena), (mA_set_dir));
     motor_init(&m2, (mB_do_step), (mB_set_ena), (mB_set_dir));
 
+    mbData[M1_TEST_SPEED_OFFSET] = (int)TEST_SPEED;
+    mbData[M1_TEST_ACCEL_OFFSET] = (int)TEST_ACCEL;
+    mbData[M2_TEST_SPEED_OFFSET] = (int)TEST_SPEED;
+    mbData[M2_TEST_ACCEL_OFFSET] = (int)TEST_ACCEL;
+    float m1_trav_speed = TEST_SPEED;
+    float m1_trav_accel = TEST_ACCEL;
+    float m2_trav_speed = TEST_SPEED;
+    float m2_trav_accel = TEST_ACCEL;
+
     uint32_t tLast = 0;
 
     generic_timer_t prog_timer_m1,prog_timer_m2;
@@ -337,11 +351,15 @@ int main(void)
         switch (m1seqv) {
         case 0: // wait button
             if (SW1) {
+                m1_trav_speed = -(float)mbData[M1_TEST_SPEED_OFFSET];
+                m1_trav_accel = -(float)mbData[M1_TEST_ACCEL_OFFSET];
                 m1.speed = -10;
                 m1.run = 0;
                 m1seqv++;
             }
             else if (SW2) {
+                m1_trav_speed = (float)mbData[M1_TEST_SPEED_OFFSET];
+                m1_trav_accel = (float)mbData[M1_TEST_ACCEL_OFFSET];
                 m1.speed = 10;
                 m1.run = 0;
                 m1seqv=4;
@@ -356,9 +374,9 @@ int main(void)
             break;
         case 1: // accelerate backward
             if (SW1) {
-                m1.speed = accel(m1.speed,-TEST_ACCEL,tDiff);
-                if (m1.speed<=-TEST_SPEED) {
-                    m1.speed =-TEST_SPEED;
+                m1.speed = accel(m1.speed,m1_trav_accel/*-TEST_ACCEL*/,tDiff);
+                if (m1.speed<=m1_trav_speed/*-TEST_SPEED*/) {
+                    m1.speed =m1_trav_speed/*-TEST_SPEED*/;
                     m1seqv++;
                 }
             } else m1seqv+=2;
@@ -369,7 +387,7 @@ int main(void)
         case 3:
             if (SW1) m1seqv-=2;
             else {
-                m1.speed = accel(m1.speed,TEST_ACCEL,tDiff);
+                m1.speed = accel(m1.speed,-m1_trav_accel/*TEST_ACCEL*/,tDiff);
                 if (m1.speed>=-TEST_MIN_SPEED) {
                     m1.speed = 0.0;
                     m1seqv = 0;
@@ -378,9 +396,9 @@ int main(void)
             break;
         case 4: // accelerate forward
             if (SW2) {
-                m1.speed = accel(m1.speed,TEST_ACCEL,tDiff);
-                if (m1.speed>=TEST_SPEED) {
-                    m1.speed =TEST_SPEED;
+                m1.speed = accel(m1.speed,m1_trav_accel/*TEST_ACCEL*/,tDiff);
+                if (m1.speed>=m1_trav_speed/*TEST_SPEED*/) {
+                    m1.speed =m1_trav_speed/*TEST_SPEED*/;
                     m1seqv++;
                 }
             } else m1seqv+=2;
@@ -391,7 +409,7 @@ int main(void)
         case 6: // decelerate
             if (SW2) m1seqv-=2;
             else {
-                m1.speed = accel(m1.speed,-TEST_ACCEL,tDiff);
+                m1.speed = accel(m1.speed,-m1_trav_accel/*-TEST_ACCEL*/,tDiff);
                 if (m1.speed<=TEST_MIN_SPEED) {
                     m1.speed = 0.0;
                     m1seqv = 0;
@@ -535,11 +553,15 @@ int main(void)
         switch (m2seqv) {
         case 0: // wait button
             if (SW3) {
+                m2_trav_accel = -(float)mbData[M2_TEST_ACCEL_OFFSET];
+                m2_trav_speed = -(float)mbData[M2_TEST_SPEED_OFFSET];
                 m2.speed = -10;
                 m2.run = 0;
                 m2seqv++;
             }
             else if (SW4) {
+                m2_trav_accel = (float)mbData[M2_TEST_ACCEL_OFFSET];
+                m2_trav_speed = (float)mbData[M2_TEST_SPEED_OFFSET];
                 m2.speed = 10;
                 m2.run = 0;
                 m2seqv=4;
@@ -553,9 +575,9 @@ int main(void)
             break;
         case 1: // accelerate backward
             if (SW3) {
-                m2.speed = accel(m2.speed,-TEST_ACCEL,tDiff);
-                if (m2.speed<=-TEST_SPEED) {
-                    m2.speed =-TEST_SPEED;
+                m2.speed = accel(m2.speed,m2_trav_accel/*-TEST_ACCEL*/,tDiff);
+                if (m2.speed<=m2_trav_speed/*-TEST_SPEED*/) {
+                    m2.speed =m2_trav_speed/*-TEST_SPEED*/;
                     m2seqv++;
                 }
             } else m2seqv+=2;
@@ -566,7 +588,7 @@ int main(void)
         case 3:
             if (SW3) m2seqv-=2;
             else {
-                m2.speed = accel(m2.speed,TEST_ACCEL,tDiff);
+                m2.speed = accel(m2.speed,-m2_trav_accel/*TEST_ACCEL*/,tDiff);
                 if (m2.speed>=-TEST_MIN_SPEED) {
                     m2.speed = 0.0;
                     m2seqv = 0;
@@ -575,9 +597,9 @@ int main(void)
             break;
         case 4: // accelerate forward
             if (SW4) {
-                m2.speed = accel(m2.speed,TEST_ACCEL,tDiff);
-                if (m2.speed>=TEST_SPEED) {
-                    m2.speed =TEST_SPEED;
+                m2.speed = accel(m2.speed,m2_trav_accel/*TEST_ACCEL*/,tDiff);
+                if (m2.speed>=m2_trav_speed/*TEST_SPEED*/) {
+                    m2.speed =m2_trav_speed/*TEST_SPEED*/;
                     m2seqv++;
                 }
             } else m2seqv+=2;
@@ -588,7 +610,7 @@ int main(void)
         case 6: // decelerate
             if (SW4) m2seqv-=2;
             else {
-                m2.speed = accel(m2.speed,-TEST_ACCEL,tDiff);
+                m2.speed = accel(m2.speed,-m2_trav_accel/*-TEST_ACCEL*/,tDiff);
                 if (m2.speed<=TEST_MIN_SPEED) {
                     m2.speed = 0.0;
                     m2seqv = 0;
