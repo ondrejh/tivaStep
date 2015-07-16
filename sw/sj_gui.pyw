@@ -1,4 +1,6 @@
 from tkinter import *
+import tkinter.messagebox as messagebox
+import tkinter.filedialog as filedialog
 import test as comm
 import os.path
 
@@ -20,7 +22,7 @@ class app:
         frame.pack()
 
         leftpan = Frame(frame)
-        leftpan.pack(side=LEFT)
+        leftpan.pack(side=LEFT,fill=Y)
         
         #comm settings
         settings = LabelFrame(leftpan,text='Settings',pady=5,padx=5)
@@ -36,7 +38,7 @@ class app:
         
         #traverse
         traverse = LabelFrame(leftpan,text='Traverse',pady=5,padx=5)
-        traverse.pack(side=TOP,padx=5,pady=5)
+        traverse.pack(side=TOP,padx=5,pady=5,fill=Y,expand=1)
 
         fdlabel = Label(traverse,text='Feeding')
         fdlabel.grid(row=0,column=0,columnspan=3,sticky=W)
@@ -113,25 +115,27 @@ class app:
         rightpan.pack(side=LEFT,fill=Y,padx=5,pady=5)
 
         self.saveCfgBtn = Button(rightpan, text="Save setup", command=self.save_settings)
-        self.saveCfgBtn.pack(side=TOP,padx=2,pady=2,fill=X,expand=1)
+        self.saveCfgBtn.pack(side=TOP,padx=2,pady=1,fill=X,expand=1)
 
         sep1 = Frame(rightpan,height=2,bd=1,relief=SUNKEN)
         sep1.pack(side=TOP,fill=X,padx=3,pady=3)
 
         self.checkBtn = Button(rightpan, text="Check data", command=self.check_data)
-        self.checkBtn.pack(side=TOP,padx=2,pady=2,fill=X,expand=1)
+        self.checkBtn.pack(side=TOP,padx=2,pady=1,fill=X,expand=1)
         self.saveDataBtn = Button(rightpan, text="Save data", command=self.save_data_to_file)
-        self.saveDataBtn.pack(side=TOP,padx=2,pady=2,fill=X,expand=1)
+        self.saveDataBtn.pack(side=TOP,padx=2,pady=1,fill=X,expand=1)
         self.loadDataBtn = Button(rightpan, text="Load data", command=self.load_data_from_file)
-        self.loadDataBtn.pack(side=TOP,padx=2,pady=2,fill=X,expand=1)
+        self.loadDataBtn.pack(side=TOP,padx=2,pady=1,fill=X,expand=1)
 
         sep2 = Frame(rightpan,height=2,bd=1,relief=SUNKEN)
         sep2.pack(side=TOP,fill=X,padx=3,pady=3)
 
         self.readButton = Button(rightpan,text='Upload',command=self.data_read)
-        self.readButton.pack(side=TOP,fill=X,expand=1,pady=2,padx=2)
+        self.readButton.pack(side=TOP,fill=X,expand=1,pady=1,padx=2)
         self.writeButton = Button(rightpan,text='Download',command=self.data_write)
-        self.writeButton.pack(side=TOP,fill=X,expand=1,pady=2,padx=2)
+        self.writeButton.pack(side=TOP,fill=X,expand=1,pady=1,padx=2)
+        self.eesaveButton = Button(rightpan,text='Save EEPROM',command=self.data_eesave)
+        self.eesaveButton.pack(side=TOP,fill=X,expand=1,pady=1,padx=2)
 
         self.default_entry_bg = self.lfspeedentry.cget('bg')
         self.default_frame_bg = self.set1frm.cget('bg')
@@ -373,6 +377,14 @@ class app:
         else:
             messagebox.showerror('Error',"Some params are set incorrectly")
 
+    def data_eesave(self):
+        try:
+            with serial.Serial(self.comVar.get(),comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
+                answ = comm.writeParams(port,1,1,1,[0x0100,])
+                if answ!='OK':
+                    messagebox.showerror('Error',"No answer to Save EEPROM command")
+        except:
+            messagebox.showerror('Error',"Can't open serial port {}".format(self.comVar.get()))
         
     def check_data(self):
 

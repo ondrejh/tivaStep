@@ -101,7 +101,7 @@ def recalc_patern(patern):
 
 if __name__ == "__main__":
 
-    # zapred
+    '''# zapred
     patern1A = [[3,500,1000],
                 [2,1600,1000],
                 [3,500,0]]
@@ -118,11 +118,12 @@ if __name__ == "__main__":
     patern1A = recalc_patern(patern1A)
     patern2A = recalc_patern(patern2A)
     patern1B = recalc_patern(patern1B)
-    patern2B = recalc_patern(patern2B)
+    patern2B = recalc_patern(patern2B)'''
 
     with serial.Serial(portName,baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=portTimeout) as port:
 
-        print(writeParams(port,1,8,len(patern1A),patern1A))
+        '''print(writeParams(port,1,8,len(patern1A),patern1A))
         print(writeParams(port,1,26,len(patern2A),patern2A))
         print(writeParams(port,1,44,len(patern1B),patern1B))
-        print(writeParams(port,1,62,len(patern2B),patern2B))
+        print(writeParams(port,1,62,len(patern2B),patern2B))'''
+        print(writeParams(port,1,1,1,[0x0100,]))

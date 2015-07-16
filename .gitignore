@@ -6,3 +6,4 @@ doc/Thumbs.db
 sw/__pycache__/
 sw/*.cfg
 sw/*.dat
+hw/tivastep-rescue.lib

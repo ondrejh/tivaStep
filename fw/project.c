@@ -102,6 +102,12 @@
 #define LED_GREEN_ON() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,GPIO_PIN_3);}while(0)
 #define LED_GREEN_OFF() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);}while(0)
 
+// spindle unit leds
+#define SU_LED_GREEN_ON() do{GPIOPinWrite(GPIO_PORTD_BASE,GPIO_PIN_6,0);}while(0)
+#define SU_LED_GREEN_OFF() do{GPIOPinWrite(GPIO_PORTD_BASE,GPIO_PIN_6,GPIO_PIN_6);}while(0)
+#define SU_LED_RED_ON() do{GPIOPinWrite(GPIO_PORTD_BASE,GPIO_PIN_7,0);}while(0)
+#define SU_LED_RED_OFF() do{GPIOPinWrite(GPIO_PORTD_BASE,GPIO_PIN_7,GPIO_PIN_7);}while(0)
+
 // onboard buttons
 #define BTN1 (GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_4)==0)
 #define BTN2 (GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_0)==0)
@@ -140,9 +146,10 @@ void debugConsoleInit(void)
   // uart1
   GPIOPinConfigure(GPIO_PB0_U1RX);
   GPIOPinConfigure(GPIO_PB1_U1TX);
-  UARTClockSourceSet(UART1_BASE, UART_CLOCK_PIOSC);
+  //UARTClockSourceSet(UART1_BASE, UART_CLOCK_PIOSC);
   GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-  UARTStdioConfig(1, 19200, 16000000);
+  UARTConfigSetExpClk(UART1_BASE, SysCtlClockGet(), 19200, UART_CONFIG_WLEN_8|UART_CONFIG_PAR_NONE|UART_CONFIG_STOP_TWO);
+  //UARTStdioConfig(1, 19200, 16000000);
 }
 
 int h2i(char c)
@@ -248,6 +255,10 @@ void motor_step(motor_t *m, bool dir)
     m->do_step();
 }
 
+#define STATUS_OFFSET 0
+#define COMMAND_OFFSET 1
+#define EESAVE_COMMAND_BIT 0x0100
+
 #define TEST_SPEED 2000.0
 #define TEST_ACCEL 5000.0
 #define TEST_MIN_SPEED 10.0
@@ -296,6 +307,13 @@ int main(void)
 
     // init exteranl switches
     GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3);
+
+    // init unit leds
+    HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) =  GPIO_LOCK_KEY;
+    HWREG(GPIO_PORTD_BASE + GPIO_O_CR) |= 0x80;
+    GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, GPIO_PIN_7|GPIO_PIN_6);
+    GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_7|GPIO_PIN_6, GPIO_PIN_7|GPIO_PIN_6);
+    //HWREG(GPIO_PORTD_BASE + GPIO_O_CR) = 0x0;
 
     // init leds
     // Enable pin PF0/4 for GPIOInput
@@ -567,6 +585,7 @@ int main(void)
                 m2seqv=4;
             }
             else if (m1seqv>=10) {
+                SU_LED_GREEN_ON();
                 m2.speed = 0;
                 m2.run = 0;
                 m2.prog = 0;
@@ -676,9 +695,12 @@ int main(void)
             break;
         case 12: // wait btn to execute second programme
             if (m1seqv>12) {
+                SU_LED_GREEN_OFF();
+                SU_LED_RED_ON();
                 m2seqv ++;
                 m2.prog = 0;
             } else if (m1seqv==0) {
+                SU_LED_GREEN_OFF();
                 m2.speed = 0;
                 m2seqv = 0;
             }
@@ -744,6 +766,8 @@ int main(void)
             break;
         case 15:
             if (m1seqv==0) {
+                SU_LED_RED_OFF();
+                SU_LED_GREEN_OFF();
                 m2seqv = 0;
             }
             break;
@@ -776,42 +800,53 @@ int main(void)
             m2.run=0;
         }
 
-        /*if (m1.run) {LED_BLUE_ON();} else {LED_BLUE_OFF();}
-        if (m2.run) {LED_GREEN_ON();} else {LED_GREEN_OFF();}*/
-
         tLast = tNow;
 
-        //  uart 0 modbus
+        // UART (modbus)
+        static int modbus_select = -1;
+        static uint32_t last_trx = 0;
+
+        //  uart 0 modbus rx
         if (UARTCharsAvail(UART0_BASE)) {
-            static uint32_t last_trx = 0;
             uint32_t trx_now = get_fast_ticks();
             char c = UARTCharGet(UART0_BASE);
-            mbrtu_recv_char(c,(trx_now-last_trx)>>4);
+            if (modbus_select!=0)
+                mbrtu_recv_char(c,MBRTU_TIMEOUT+1);
+            else
+                mbrtu_recv_char(c,(trx_now-last_trx)>>4);
             last_trx = trx_now;
+            modbus_select = 0;
         }
-        if (mb_tx_char_avail()>0) {
-            UARTCharPut(UART0_BASE,mb_tx_char_get());
+        // uart 1 modbus rx
+        if (UARTCharsAvail(UART1_BASE)) {
+            uint32_t trx_now = get_fast_ticks();
+            char c = UARTCharGet(UART1_BASE);
+            if (modbus_select!=1)
+                mbrtu_recv_char(c,MBRTU_TIMEOUT+1);
+            else
+                mbrtu_recv_char(c,(trx_now-last_trx)>>4);
+            last_trx = trx_now;
+            modbus_select = 1;
         }
 
-        // uart 1 echo
-        if (UARTCharsAvail(UART1_BASE)) {
-            char c = UARTCharGet(UART1_BASE);
-            UARTCharPut(UART1_BASE,c);
-        }
-        /*if (UARTCharsAvail(UART0_BASE)) {
-            uint32_t err = UARTRxErrorGet(UART0_BASE);
-            char c = UARTCharGet(UART0_BASE);
-            if (err!=0)
-                UARTRxErrorClear(UART0_BASE);
-            else {
-                // char received without errors
-                if (c=='?') {
-                    char buf[64];
-                    sprintf(buf,"%.1f %.1f\n",m1.speed,TEST_ACCEL);
-                    //UARTwrite(buf,strlen(buf));
-                }
-                UARTCharPutNonBlocking(UART0_BASE,c); // echo
+        // modbus tx
+        if (mb_tx_char_avail()>0) {
+            switch (modbus_select) {
+            case 0:
+                UARTCharPut(UART0_BASE,mb_tx_char_get());
+                break;
+            case 1:
+                UARTCharPut(UART1_BASE,mb_tx_char_get());
+                break;
+            default:
+                break;
             }
-        }*/
+        }
+
+        // save data to eeprom
+        if (mbData[COMMAND_OFFSET]&EESAVE_COMMAND_BIT) {
+            mbrtu_save_eeprom();
+            mbData[COMMAND_OFFSET]&=~EESAVE_COMMAND_BIT;
+        }
     }
 }
