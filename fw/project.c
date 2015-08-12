@@ -59,6 +59,7 @@
 #include "utils/uartstdio.h"
 
 #include "timer.c"
+#include "mbrtu_serv.c"
 
 //*****************************************************************************
 //
@@ -101,6 +102,12 @@
 #define LED_GREEN_ON() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,GPIO_PIN_3);}while(0)
 #define LED_GREEN_OFF() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);}while(0)
 
+// spindle unit leds
+#define SU_LED_GREEN_ON() do{GPIOPinWrite(GPIO_PORTD_BASE,GPIO_PIN_6,0);}while(0)
+#define SU_LED_GREEN_OFF() do{GPIOPinWrite(GPIO_PORTD_BASE,GPIO_PIN_6,GPIO_PIN_6);}while(0)
+#define SU_LED_RED_ON() do{GPIOPinWrite(GPIO_PORTD_BASE,GPIO_PIN_7,0);}while(0)
+#define SU_LED_RED_OFF() do{GPIOPinWrite(GPIO_PORTD_BASE,GPIO_PIN_7,GPIO_PIN_7);}while(0)
+
 // onboard buttons
 #define BTN1 (GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_4)==0)
 #define BTN2 (GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_0)==0)
@@ -133,16 +140,16 @@ void debugConsoleInit(void)
 
   // enable UART0
   //SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
-  UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC); // use internal 16MHz osc.
+  UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 19200, UART_CONFIG_WLEN_8|UART_CONFIG_PAR_NONE|UART_CONFIG_STOP_TWO);
   GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-  UARTStdioConfig(0, 115200, 16000000);
 
   // uart1
   GPIOPinConfigure(GPIO_PB0_U1RX);
   GPIOPinConfigure(GPIO_PB1_U1TX);
-  UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
+  //UARTClockSourceSet(UART1_BASE, UART_CLOCK_PIOSC);
   GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-  UARTStdioConfig(0, 115200, 16000000);
+  UARTConfigSetExpClk(UART1_BASE, SysCtlClockGet(), 19200, UART_CONFIG_WLEN_8|UART_CONFIG_PAR_NONE|UART_CONFIG_STOP_TWO);
+  //UARTStdioConfig(1, 19200, 16000000);
 }
 
 int h2i(char c)
@@ -163,8 +170,20 @@ typedef struct {
     float speed;
     uint32_t step_ticks; // number of ticks per one step
     uint32_t step_timer; // timer counter to calculate steps
+    uint32_t position;
     int run; // 0 stop, 1 forward, -1 backward
 
+    // help variables - calculate position and speed
+    uint32_t u32A,u32B;
+    float spdA,spdB;
+
+    // program values
+    int prog;
+    uint8_t ptype;
+    uint16_t pval1;
+    int16_t pval2;
+
+    // function pointer placeholders
     void (*do_step)();
     void (*set_enable)(_Bool);
     void (*set_dir)(_Bool);
@@ -186,8 +205,9 @@ float ramp(float spdA, float spdB, uint32_t timA, uint32_t timB, uint32_t timN)
 {
     float spdAB = spdB-spdA;
     uint32_t timAB = timB-timA;
+    uint32_t timAN = timN-timA;
 
-    return spdA + spdAB*((float)timN/(float)timAB);
+    return (spdA + (spdAB*timAN/timAB));
 }
 
 float accel(float spd, float acl, uint32_t dt)
@@ -209,7 +229,13 @@ void motor_init(motor_t *m, void (*do_step)(), void (*set_enable)(_Bool), void (
     //m.enable = false;
     m->speed = 0; // Hz
     m->step_timer = 0;
+    m->position = 0;
     m->run = 0;
+
+    m->prog = 0;
+    m->ptype = 0;
+    m->pval1 = 0;
+    m->pval2 = 0;
 
     // init output functions
     m->do_step = do_step;
@@ -225,12 +251,23 @@ void motor_step(motor_t *m, bool dir)
         m->set_dir(dir);
     }
 
+    m->position+=m->run;
     m->do_step();
 }
+
+#define STATUS_OFFSET 0
+#define COMMAND_OFFSET 1
+#define EESAVE_COMMAND_BIT 0x0100
 
 #define TEST_SPEED 2000.0
 #define TEST_ACCEL 5000.0
 #define TEST_MIN_SPEED 10.0
+
+#define M1_TEST_SPEED_OFFSET 4
+#define M1_TEST_ACCEL_OFFSET 5
+#define M2_TEST_SPEED_OFFSET 6
+#define M2_TEST_ACCEL_OFFSET 7
+
 
 // main program
 int main(void)
@@ -244,14 +281,17 @@ int main(void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0); // uart0
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1); // uart1
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // timer0
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0); // eeprom
 
     // init clock
     SysCtlClockSet(SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
 
     // init serial console
     debugConsoleInit();
+    mbrtu_init_table(1); // init data table and address
 
     // init motor ios
+    // note: don't forget to remove R9, R10 from Tiva C launchpad board !!!
     GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE,GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4); // motor A PUL,DIR,ENA
     GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4, 0x00); // PUL,DIR,ENA <- 'L'
     GPIOPinTypeGPIOInput(GPIO_PORTB_BASE,GPIO_PIN_6); // motor A FLT (input)
@@ -261,6 +301,13 @@ int main(void)
 
     // init exteranl switches
     GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3);
+
+    // init unit leds
+    HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) =  GPIO_LOCK_KEY;
+    HWREG(GPIO_PORTD_BASE + GPIO_O_CR) |= 0x80;
+    GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, GPIO_PIN_7|GPIO_PIN_6);
+    GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_7|GPIO_PIN_6, GPIO_PIN_7|GPIO_PIN_6);
+    //HWREG(GPIO_PORTD_BASE + GPIO_O_CR) = 0x0;
 
     // init leds
     // Enable pin PF0/4 for GPIOInput
@@ -288,6 +335,15 @@ int main(void)
     motor_init(&m1, (mA_do_step), (mA_set_ena), (mA_set_dir));
     motor_init(&m2, (mB_do_step), (mB_set_ena), (mB_set_dir));
 
+    mbData[M1_TEST_SPEED_OFFSET] = (int)TEST_SPEED;
+    mbData[M1_TEST_ACCEL_OFFSET] = (int)TEST_ACCEL;
+    mbData[M2_TEST_SPEED_OFFSET] = (int)TEST_SPEED;
+    mbData[M2_TEST_ACCEL_OFFSET] = (int)TEST_ACCEL;
+    float m1_trav_speed = TEST_SPEED;
+    float m1_trav_accel = TEST_ACCEL;
+    float m2_trav_speed = TEST_SPEED;
+    float m2_trav_accel = TEST_ACCEL;
+
     uint32_t tLast = 0;
 
     // Loop forever.
@@ -296,38 +352,43 @@ int main(void)
         uint32_t tNow = get_fast_ticks();
         uint32_t tDiff = tNow-tLast;
 
-        if (MA_FLT||MB_FLT) {LED_RED_ON();} else {LED_RED_OFF();}
+        //if (MA_FLT||MB_FLT) {LED_RED_ON();} else {LED_RED_OFF();}
 
+        static int m2seqv = 0;
         static int m1seqv = 0;
         switch (m1seqv) {
         case 0: // wait button
-            if (BTN1||SW1) {
+            if (SW1) {
+                m1_trav_speed = -(float)mbData[M1_TEST_SPEED_OFFSET];
+                m1_trav_accel = -(float)mbData[M1_TEST_ACCEL_OFFSET];
                 m1.speed = -10;
                 m1.run = 0;
                 m1seqv++;
             }
-            else if (BTN2||SW2) {
+            else if (SW2) {
+                m1_trav_speed = (float)mbData[M1_TEST_SPEED_OFFSET];
+                m1_trav_accel = (float)mbData[M1_TEST_ACCEL_OFFSET];
                 m1.speed = 10;
                 m1.run = 0;
                 m1seqv=4;
             }
             break;
         case 1: // accelerate backward
-            if (BTN1||SW1) {
-                m1.speed = accel(m1.speed,-TEST_ACCEL,tDiff);
-                if (m1.speed<=-TEST_SPEED) {
-                    m1.speed =-TEST_SPEED;
+            if (SW1) {
+                m1.speed = accel(m1.speed,m1_trav_accel/*-TEST_ACCEL*/,tDiff);
+                if (m1.speed<=m1_trav_speed/*-TEST_SPEED*/) {
+                    m1.speed =m1_trav_speed/*-TEST_SPEED*/;
                     m1seqv++;
                 }
             } else m1seqv+=2;
             break;
         case 2: // go backward (full speed)
-            if (!(BTN1||SW1)) m1seqv++;
+            if (!(SW1)) m1seqv++;
             break;
         case 3:
-            if (BTN1||SW1) m1seqv-=2;
+            if (SW1) m1seqv-=2;
             else {
-                m1.speed = accel(m1.speed,TEST_ACCEL,tDiff);
+                m1.speed = accel(m1.speed,-m1_trav_accel/*TEST_ACCEL*/,tDiff);
                 if (m1.speed>=-TEST_MIN_SPEED) {
                     m1.speed = 0.0;
                     m1seqv = 0;
@@ -335,21 +396,21 @@ int main(void)
             }
             break;
         case 4: // accelerate forward
-            if (BTN2||SW2) {
-                m1.speed = accel(m1.speed,TEST_ACCEL,tDiff);
-                if (m1.speed>=TEST_SPEED) {
-                    m1.speed =TEST_SPEED;
+            if (SW2) {
+                m1.speed = accel(m1.speed,m1_trav_accel/*TEST_ACCEL*/,tDiff);
+                if (m1.speed>=m1_trav_speed/*TEST_SPEED*/) {
+                    m1.speed =m1_trav_speed/*TEST_SPEED*/;
                     m1seqv++;
                 }
             } else m1seqv+=2;
             break;
         case 5: // go forward (full speed)
-            if (!(BTN2||SW2)) m1seqv++;
+            if (!(SW2)) m1seqv++;
             break;
         case 6: // decelerate
-            if (BTN2||SW2) m1seqv-=2;
+            if (SW2) m1seqv-=2;
             else {
-                m1.speed = accel(m1.speed,-TEST_ACCEL,tDiff);
+                m1.speed = accel(m1.speed,-m1_trav_accel/*-TEST_ACCEL*/,tDiff);
                 if (m1.speed<=TEST_MIN_SPEED) {
                     m1.speed = 0.0;
                     m1seqv = 0;
@@ -361,15 +422,18 @@ int main(void)
             break;
         }
 
-        static int m2seqv = 0;
         switch (m2seqv) {
         case 0: // wait button
             if (SW3) {
+                m2_trav_accel = -(float)mbData[M2_TEST_ACCEL_OFFSET];
+                m2_trav_speed = -(float)mbData[M2_TEST_SPEED_OFFSET];
                 m2.speed = -10;
                 m2.run = 0;
                 m2seqv++;
             }
             else if (SW4) {
+                m2_trav_accel = (float)mbData[M2_TEST_ACCEL_OFFSET];
+                m2_trav_speed = (float)mbData[M2_TEST_SPEED_OFFSET];
                 m2.speed = 10;
                 m2.run = 0;
                 m2seqv=4;
@@ -377,9 +441,9 @@ int main(void)
             break;
         case 1: // accelerate backward
             if (SW3) {
-                m2.speed = accel(m2.speed,-TEST_ACCEL,tDiff);
-                if (m2.speed<=-TEST_SPEED) {
-                    m2.speed =-TEST_SPEED;
+                m2.speed = accel(m2.speed,m2_trav_accel/*-TEST_ACCEL*/,tDiff);
+                if (m2.speed<=m2_trav_speed/*-TEST_SPEED*/) {
+                    m2.speed =m2_trav_speed/*-TEST_SPEED*/;
                     m2seqv++;
                 }
             } else m2seqv+=2;
@@ -390,7 +454,7 @@ int main(void)
         case 3:
             if (SW3) m2seqv-=2;
             else {
-                m2.speed = accel(m2.speed,TEST_ACCEL,tDiff);
+                m2.speed = accel(m2.speed,-m2_trav_accel/*TEST_ACCEL*/,tDiff);
                 if (m2.speed>=-TEST_MIN_SPEED) {
                     m2.speed = 0.0;
                     m2seqv = 0;
@@ -399,9 +463,9 @@ int main(void)
             break;
         case 4: // accelerate forward
             if (SW4) {
-                m2.speed = accel(m2.speed,TEST_ACCEL,tDiff);
-                if (m2.speed>=TEST_SPEED) {
-                    m2.speed =TEST_SPEED;
+                m2.speed = accel(m2.speed,m2_trav_accel/*TEST_ACCEL*/,tDiff);
+                if (m2.speed>=m2_trav_speed/*TEST_SPEED*/) {
+                    m2.speed =m2_trav_speed/*TEST_SPEED*/;
                     m2seqv++;
                 }
             } else m2seqv+=2;
@@ -412,7 +476,7 @@ int main(void)
         case 6: // decelerate
             if (SW4) m2seqv-=2;
             else {
-                m2.speed = accel(m2.speed,-TEST_ACCEL,tDiff);
+                m2.speed = accel(m2.speed,-m2_trav_accel/*-TEST_ACCEL*/,tDiff);
                 if (m2.speed<=TEST_MIN_SPEED) {
                     m2.speed = 0.0;
                     m2seqv = 0;
@@ -448,35 +512,53 @@ int main(void)
             m2.run=0;
         }
 
-        if (m1.run) {LED_BLUE_ON();} else {LED_BLUE_OFF();}
-        if (m2.run) {LED_GREEN_ON();} else {LED_GREEN_OFF();}
-
         tLast = tNow;
 
-        // debug uart
+        // UART (modbus)
+        static int modbus_select = -1;
+        static uint32_t last_trx = 0;
+
+        //  uart 0 modbus rx
         if (UARTCharsAvail(UART0_BASE)) {
+            uint32_t trx_now = get_fast_ticks();
             char c = UARTCharGet(UART0_BASE);
-            UARTCharPut(UART0_BASE,c);
+            if (modbus_select!=0)
+                mbrtu_recv_char(c,MBRTU_TIMEOUT+1);
+            else
+                mbrtu_recv_char(c,(trx_now-last_trx)>>4);
+            last_trx = trx_now;
+            modbus_select = 0;
+        }
+        // uart 1 modbus rx
+        if (UARTCharsAvail(UART1_BASE)) {
+            uint32_t trx_now = get_fast_ticks();
+            char c = UARTCharGet(UART1_BASE);
+            if (modbus_select!=1)
+                mbrtu_recv_char(c,MBRTU_TIMEOUT+1);
+            else
+                mbrtu_recv_char(c,(trx_now-last_trx)>>4);
+            last_trx = trx_now;
+            modbus_select = 1;
         }
 
-        if (UARTCharsAvail(UART1_BASE)) {
-            char c = UARTCharGet(UART1_BASE);
-            UARTCharPut(UART1_BASE,c);
-        }
-        /*if (UARTCharsAvail(UART0_BASE)) {
-            uint32_t err = UARTRxErrorGet(UART0_BASE);
-            char c = UARTCharGet(UART0_BASE);
-            if (err!=0)
-                UARTRxErrorClear(UART0_BASE);
-            else {
-                // char received without errors
-                if (c=='?') {
-                    char buf[64];
-                    sprintf(buf,"%.1f %.1f\n",m1.speed,TEST_ACCEL);
-                    //UARTwrite(buf,strlen(buf));
-                }
-                UARTCharPutNonBlocking(UART0_BASE,c); // echo
+        // modbus tx
+        if (mb_tx_char_avail()>0) {
+            switch (modbus_select) {
+            case 0:
+                UARTCharPut(UART0_BASE,mb_tx_char_get());
+                break;
+            case 1:
+                UARTCharPut(UART1_BASE,mb_tx_char_get());
+                break;
+            default:
+                break;
             }
-        }*/
+        }
+
+        // save data to eeprom
+        if (mbData[COMMAND_OFFSET]&EESAVE_COMMAND_BIT) {
+            mbrtu_save_eeprom();
+            mbData[COMMAND_OFFSET]&=~EESAVE_COMMAND_BIT;
+        }
     }
 }
