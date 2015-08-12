@@ -13,6 +13,12 @@ except:
 
 configfilename = 'setup.cfg'
 
+frameFont = ("Arial",12)
+labelFont = ("Arial",10)
+entryFont = ("Courier",14)
+spinFont = ("Courier",14,"bold")
+buttonFont = ("Courier",10,"bold")
+
 class app:
 
     def __init__(self,master):
@@ -25,116 +31,116 @@ class app:
         leftpan.pack(side=LEFT,fill=Y)
         
         #comm settings
-        settings = LabelFrame(leftpan,text='Settings',pady=5,padx=5)
+        settings = LabelFrame(leftpan,text='Settings',pady=5,padx=5,font=frameFont)
         settings.pack(fill=BOTH,padx=5,pady=5)
         
         companel = Frame(settings)
         companel.pack(side=TOP,fill=X)
-        comlabel = Label(companel,text='Port:')
+        comlabel = Label(companel,text='Port:',font=labelFont)
         comlabel.grid(row=0,column=0,pady=3)
         self.comVar = StringVar(master,'COM1')
-        self.comEntry = Entry(companel,width=10,textvariable=self.comVar)
+        self.comEntry = Entry(companel,width=10,textvariable=self.comVar,font=entryFont,justify=CENTER)
         self.comEntry.grid(row=0,column=1,pady=3)
         
         #traverse
-        traverse = LabelFrame(leftpan,text='Traverse',pady=5,padx=5)
+        traverse = LabelFrame(leftpan,text='Traverse',pady=5,padx=5,font=frameFont)
         traverse.pack(side=TOP,padx=5,pady=5,fill=Y,expand=1)
 
-        fdlabel = Label(traverse,text='Feeding')
+        fdlabel = Label(traverse,text='Feeding',font=labelFont)
         fdlabel.grid(row=0,column=0,columnspan=3,sticky=W)
 
-        fdspeedlab = Label(traverse,text='Speed')
+        fdspeedlab = Label(traverse,text='Speed',font=labelFont)
         fdspeedlab.grid(row=1,column=0)
-        fdspeedunlab = Label(traverse,text='Hz')
+        fdspeedunlab = Label(traverse,text='Hz',font=labelFont)
         fdspeedunlab.grid(row=1,column=2)
         self.fdSpeedVar = StringVar(master,'-')
-        self.fdspeedentry = Entry(traverse,width=8,textvariable=self.fdSpeedVar)
+        self.fdspeedentry = Entry(traverse,width=8,textvariable=self.fdSpeedVar,font=entryFont,justify=CENTER)
         self.fdspeedentry.grid(row=1,column=1)
 
-        fdaccellab = Label(traverse,text='Accel')
+        fdaccellab = Label(traverse,text='Accel',font=labelFont)
         fdaccellab.grid(row=2,column=0)
-        fdaccelunlab = Label(traverse,text='Hz/s')
+        fdaccelunlab = Label(traverse,text='Hz/s',font=labelFont)
         fdaccelunlab.grid(row=2,column=2)
         self.fdAccelVar = StringVar(master,'-')
-        self.fdaccelentry = Entry(traverse,width=8,textvariable=self.fdAccelVar)
+        self.fdaccelentry = Entry(traverse,width=8,textvariable=self.fdAccelVar,font=entryFont,justify=CENTER)
         self.fdaccelentry.grid(row=2,column=1)
 
-        lflabel = Label(traverse,text='Lifting')
+        lflabel = Label(traverse,text='Lifting',font=labelFont)
         lflabel.grid(row=3,column=0,columnspan=3,sticky=W)
 
-        lfspeedlab = Label(traverse,text='Speed')
+        lfspeedlab = Label(traverse,text='Speed',font=labelFont)
         lfspeedlab.grid(row=4,column=0)
-        lfspeedunlab = Label(traverse,text='Hz')
+        lfspeedunlab = Label(traverse,text='Hz',font=labelFont)
         lfspeedunlab.grid(row=4,column=2)
         self.lfSpeedVar = StringVar(master,'-')
-        self.lfspeedentry = Entry(traverse,width=8,textvariable=self.lfSpeedVar)
+        self.lfspeedentry = Entry(traverse,width=8,textvariable=self.lfSpeedVar,font=entryFont,justify=CENTER)
         self.lfspeedentry.grid(row=4,column=1)
 
-        lfaccellab = Label(traverse,text='Accel')
+        lfaccellab = Label(traverse,text='Accel',font=labelFont)
         lfaccellab.grid(row=5,column=0)
-        lfaccelunlab = Label(traverse,text='Hz/s')
+        lfaccelunlab = Label(traverse,text='Hz/s',font=labelFont)
         lfaccelunlab.grid(row=5,column=2)
         self.lfAccelVar = StringVar(master,'-')
-        self.lfaccelentry = Entry(traverse,width=8,textvariable=self.lfAccelVar)
+        self.lfaccelentry = Entry(traverse,width=8,textvariable=self.lfAccelVar,font=entryFont,justify=CENTER)
         self.lfaccelentry.grid(row=5,column=1)
         
         #start
-        panel1 = LabelFrame(frame,text='Start programme',padx=5,pady=5)
+        panel1 = LabelFrame(frame,text='Start programme',padx=5,pady=5,font=frameFont)
         panel1.pack(side=LEFT,fill=Y,padx=5,pady=5)
 
-        self.set1frm = LabelFrame(panel1,text='Feeding',relief=FLAT)
+        self.set1frm = LabelFrame(panel1,text='Feeding',relief=FLAT,font=frameFont)
         self.set1frm.pack(side=LEFT)
         self.val1 = self.gui_create_var_grid(3,8,master)
         self.set1 = self.gui_create_set(self.set1frm,self.val1)
         self.set1.pack(padx=5,pady=5)
 
-        self.set2frm = LabelFrame(panel1,text='Lifting',relief=FLAT)
+        self.set2frm = LabelFrame(panel1,text='Lifting',relief=FLAT,font=frameFont)
         self.set2frm.pack(side=LEFT)
         self.val2 = self.gui_create_var_grid(3,8,master)
         self.set2 = self.gui_create_set(self.set2frm,self.val2)
         self.set2.pack(padx=5,pady=5,side=LEFT)
 
         #stop
-        panel2 = LabelFrame(frame,text='Stop programme',padx=5,pady=5)
+        panel2 = LabelFrame(frame,text='Stop programme',padx=5,pady=5,font=frameFont)
         panel2.pack(side=LEFT,fill=Y,padx=5,pady=5)
 
-        self.set3frm = LabelFrame(panel2,text='Feeding',relief=FLAT)
+        self.set3frm = LabelFrame(panel2,text='Feeding',relief=FLAT,font=frameFont)
         self.set3frm.pack(side=LEFT)
         self.val3 = self.gui_create_var_grid(3,8,master)
         self.set3 = self.gui_create_set(self.set3frm,self.val3)
         self.set3.pack(padx=5,pady=5,side=LEFT)
 
-        self.set4frm = LabelFrame(panel2,text='Lifting',relief=FLAT)
+        self.set4frm = LabelFrame(panel2,text='Lifting',relief=FLAT,font=frameFont)
         self.set4frm.pack(side=LEFT)
         self.val4 = self.gui_create_var_grid(3,8,master)
         self.set4 = self.gui_create_set(self.set4frm,self.val4)
         self.set4.pack(padx=5,pady=5,side=LEFT)
 
         #right panel
-        rightpan = LabelFrame(frame,text='Controll',padx=5,pady=5)
+        rightpan = LabelFrame(frame,text='Controll',padx=5,pady=5,font=frameFont)
         rightpan.pack(side=LEFT,fill=Y,padx=5,pady=5)
 
-        self.saveCfgBtn = Button(rightpan, text="Save setup", command=self.save_settings)
+        self.saveCfgBtn = Button(rightpan, text="Save setup", command=self.save_settings,font=buttonFont)
         self.saveCfgBtn.pack(side=TOP,padx=2,pady=1,fill=X,expand=1)
 
         sep1 = Frame(rightpan,height=2,bd=1,relief=SUNKEN)
         sep1.pack(side=TOP,fill=X,padx=3,pady=3)
 
-        self.checkBtn = Button(rightpan, text="Check data", command=self.check_data)
+        self.checkBtn = Button(rightpan, text="Check data", command=self.check_data,font=buttonFont)
         self.checkBtn.pack(side=TOP,padx=2,pady=1,fill=X,expand=1)
-        self.saveDataBtn = Button(rightpan, text="Save data", command=self.save_data_to_file)
+        self.saveDataBtn = Button(rightpan, text="Save data", command=self.save_data_to_file,font=buttonFont)
         self.saveDataBtn.pack(side=TOP,padx=2,pady=1,fill=X,expand=1)
-        self.loadDataBtn = Button(rightpan, text="Load data", command=self.load_data_from_file)
+        self.loadDataBtn = Button(rightpan, text="Load data", command=self.load_data_from_file,font=buttonFont)
         self.loadDataBtn.pack(side=TOP,padx=2,pady=1,fill=X,expand=1)
 
         sep2 = Frame(rightpan,height=2,bd=1,relief=SUNKEN)
         sep2.pack(side=TOP,fill=X,padx=3,pady=3)
 
-        self.readButton = Button(rightpan,text='Upload',command=self.data_read)
+        self.readButton = Button(rightpan,text='Upload',command=self.data_read,font=buttonFont)
         self.readButton.pack(side=TOP,fill=X,expand=1,pady=1,padx=2)
-        self.writeButton = Button(rightpan,text='Download',command=self.data_write)
+        self.writeButton = Button(rightpan,text='Download',command=self.data_write,font=buttonFont)
         self.writeButton.pack(side=TOP,fill=X,expand=1,pady=1,padx=2)
-        self.eesaveButton = Button(rightpan,text='Save EEPROM',command=self.data_eesave)
+        self.eesaveButton = Button(rightpan,text='Save EEPROM',command=self.data_eesave,font=buttonFont)
         self.eesaveButton.pack(side=TOP,fill=X,expand=1,pady=1,padx=2)
 
         self.default_entry_bg = self.lfspeedentry.cget('bg')
@@ -157,11 +163,11 @@ class app:
         val2 = []
         
         for i in range(8):
-            fsb.append(Spinbox(setOut,from_=0,to=3,width=3,state='readonly',textvariable=values[i][0]))
+            fsb.append(Spinbox(setOut,from_=0,to=3,width=3,state='readonly',textvariable=values[i][0],font=spinFont,justify=CENTER))
             fsb[-1].grid(row=i,column=0)
-            val1.append(Entry(setOut,width=7,textvariable=values[i][1]))
+            val1.append(Entry(setOut,width=7,textvariable=values[i][1],font=entryFont,justify=CENTER))
             val1[-1].grid(row=i,column=1)
-            val2.append(Entry(setOut,width=7,textvariable=values[i][2]))
+            val2.append(Entry(setOut,width=7,textvariable=values[i][2],font=entryFont,justify=CENTER))
             val2[-1].grid(row=i,column=2)
 
         return setOut

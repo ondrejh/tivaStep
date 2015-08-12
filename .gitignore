@@ -7,3 +7,4 @@ sw/__pycache__/
 sw/*.cfg
 sw/*.dat
 hw/tivastep-rescue.lib
+sw/dist
