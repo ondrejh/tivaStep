@@ -15,13 +15,15 @@ configfilename = 'setup.cfg'
 
 frameFont = ("Arial",12)
 labelFont = ("Arial",10)
-entryFont = ("Courier",14)
-spinFont = ("Courier",14,"bold")
-buttonFont = ("Courier",10,"bold")
+entryFont = ("Courier",12)
+spinFont = ("Courier",24)
+buttonFont = ("Courier",14)
 
 class app:
 
     def __init__(self,master):
+
+        root.title('Spindle Unit Tester')
 
         #build gui
         frame = Frame(master)
@@ -37,17 +39,22 @@ class app:
         companel = Frame(settings)
         companel.pack(side=TOP,fill=X)
         comlabel = Label(companel,text='Port:',font=labelFont)
-        comlabel.grid(row=0,column=0,pady=3)
+        comlabel.grid(row=0,column=0,pady=3,sticky=W)
         self.comVar = StringVar(master,'COM1')
         self.comEntry = Entry(companel,width=10,textvariable=self.comVar,font=entryFont,justify=CENTER)
-        self.comEntry.grid(row=0,column=1,pady=3)
-        
+        self.comEntry.grid(row=0,column=1,columnspan=2,pady=3)
+        adrlabel = Label(companel,text='Address:',font=labelFont)
+        adrlabel.grid(row=1,column=0,columnspan=2,pady=3,sticky=W)
+        self.adrVar = StringVar(master,'1')
+        self.adrEntry = Entry(companel,width=4,textvariable=self.adrVar,font=entryFont,justify=CENTER,state=DISABLED)
+        self.adrEntry.grid(row=1,column=2,pady=3,sticky=E)
+                
         #traverse
         traverse = LabelFrame(leftpan,text='Traverse',pady=5,padx=5,font=frameFont)
         traverse.pack(side=TOP,padx=5,pady=5,fill=Y,expand=1)
 
         fdlabel = Label(traverse,text='Feeding',font=labelFont)
-        fdlabel.grid(row=0,column=0,columnspan=3,sticky=W)
+        fdlabel.grid(row=0,column=0,columnspan=3,sticky=W,pady=10)
 
         fdspeedlab = Label(traverse,text='Speed',font=labelFont)
         fdspeedlab.grid(row=1,column=0)
@@ -66,7 +73,7 @@ class app:
         self.fdaccelentry.grid(row=2,column=1)
 
         lflabel = Label(traverse,text='Lifting',font=labelFont)
-        lflabel.grid(row=3,column=0,columnspan=3,sticky=W)
+        lflabel.grid(row=3,column=0,columnspan=3,sticky=W,pady=10)
 
         lfspeedlab = Label(traverse,text='Speed',font=labelFont)
         lfspeedlab.grid(row=4,column=0)
@@ -163,12 +170,12 @@ class app:
         val2 = []
         
         for i in range(8):
-            fsb.append(Spinbox(setOut,from_=0,to=3,width=3,state='readonly',textvariable=values[i][0],font=spinFont,justify=CENTER))
+            fsb.append(Spinbox(setOut,from_=0,to=3,width=2,state='readonly',textvariable=values[i][0],font=spinFont,justify=CENTER))
             fsb[-1].grid(row=i,column=0)
             val1.append(Entry(setOut,width=7,textvariable=values[i][1],font=entryFont,justify=CENTER))
-            val1[-1].grid(row=i,column=1)
+            val1[-1].grid(row=i,column=1,sticky=N+S)
             val2.append(Entry(setOut,width=7,textvariable=values[i][2],font=entryFont,justify=CENTER))
-            val2[-1].grid(row=i,column=2)
+            val2[-1].grid(row=i,column=2,sticky=N+S)
 
         return setOut
 
@@ -193,7 +200,8 @@ class app:
 
         try:
             f = open(configfilename,'w')
-            f.write('port={}'.format(self.comVar.get()))
+            f.write('port={}\n'.format(self.comVar.get()))
+            f.write('address={}\n'.format(self.adrVar.get()))
             f.close()
             messagebox.showinfo('Info','Configuration saved to {} file'.format(configfilename))
         except:
@@ -206,6 +214,8 @@ class app:
             for line in f:
                 if line[:len('port=')]=='port=':
                     self.comVar.set(line[len('port='):].strip())
+                if line[:len('address=')]=='address=':
+                    self.adrVar.set(line[len('address='):].strip())
 
 
     def test_unsigned_entry(self,entry,var):
@@ -263,10 +273,17 @@ class app:
 
     def data_read(self):
 
+        adr = 1
+        try:
+            adr = int(self.adrVar.get())
+        except:
+            messagebox.showerror('Error',message="Incorrect address format ".format(self.adrVar.get()))
+            return
+        
         try:
             with serial.Serial(self.comVar.get(),comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
                 err = 0
-                answ = comm.readParams(port,1,4,4)
+                answ = comm.readParams(port,adr,4,4)
                 if answ[0]!=4:
                     err+=1
                 else:
@@ -274,7 +291,7 @@ class app:
                     self.fdAccelVar.set('{}'.format(answ[1][1]))
                     self.lfSpeedVar.set('{}'.format(answ[1][2]))
                     self.lfAccelVar.set('{}'.format(answ[1][3]))
-                answ = comm.readParams(port,1,8,16)
+                answ = comm.readParams(port,adr,8,16)
                 if answ[0]!=16:
                     err+=1
                 else:
@@ -286,7 +303,7 @@ class app:
                         self.val2[i][0].set('{}'.format((v0&0xFFFF)>>14))
                         self.val2[i][1].set('{}'.format(v0&0x3FFF))
                         self.val2[i][2].set('{}'.format(v1))
-                answ = comm.readParams(port,1,26,16)
+                answ = comm.readParams(port,adr,26,16)
                 if answ[0]!=16:
                     err+=1
                 else:
@@ -298,7 +315,7 @@ class app:
                         self.val1[i][0].set('{}'.format((v0&0xFFFF)>>14))
                         self.val1[i][1].set('{}'.format(v0&0x3FFF))
                         self.val1[i][2].set('{}'.format(v1))
-                answ = comm.readParams(port,1,44,16)
+                answ = comm.readParams(port,adr,44,16)
                 if answ[0]!=16:
                     err+=1
                 else:
@@ -310,7 +327,7 @@ class app:
                         self.val4[i][0].set('{}'.format((v0&0xFFFF)>>14))
                         self.val4[i][1].set('{}'.format(v0&0x3FFF))
                         self.val4[i][2].set('{}'.format(v1))
-                answ = comm.readParams(port,1,62,16)
+                answ = comm.readParams(port,adr,62,16)
                 if answ[0]!=16:
                     err+=1
                 else:
@@ -347,33 +364,40 @@ class app:
 
     def data_write(self):
 
+        adr = 1
+        try:
+            adr = int(self.adrVar.get())
+        except:
+            messagebox.showerror('Error',message="Incorrect address format ".format(self.adrVar.get()))
+            return
+        
         if self.data_test()==0:
 
             try:
                 with serial.Serial(self.comVar.get(),comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
                     err = 0
-                    answ = comm.writeParams(port,1,4,4,[int(self.fdSpeedVar.get())&0xFFFF,int(self.fdAccelVar.get())&0xFFFF,
+                    answ = comm.writeParams(port,adr,4,4,[int(self.fdSpeedVar.get())&0xFFFF,int(self.fdAccelVar.get())&0xFFFF,
                                                         int(self.lfSpeedVar.get())&0xFFFF,int(self.lfAccelVar.get())&0xFFFF])
                     if answ!='OK':
                         err+=1
                     patern=self.get_patern(self.val1)
                     patern=comm.recalc_patern(patern)
-                    answ = comm.writeParams(port,1,26,len(patern),patern)
+                    answ = comm.writeParams(port,adr,26,len(patern),patern)
                     if answ!='OK':
                         err+=1
                     patern=self.get_patern(self.val2)
                     patern=comm.recalc_patern(patern)
-                    answ = comm.writeParams(port,1,8,len(patern),patern)
+                    answ = comm.writeParams(port,adr,8,len(patern),patern)
                     if answ!='OK':
                         err+=1
                     patern=self.get_patern(self.val3)
                     patern=comm.recalc_patern(patern)
-                    answ = comm.writeParams(port,1,62,len(patern),patern)
+                    answ = comm.writeParams(port,adr,62,len(patern),patern)
                     if answ!='OK':
                         err+=1
                     patern=self.get_patern(self.val4)
                     patern=comm.recalc_patern(patern)
-                    answ = comm.writeParams(port,1,44,len(patern),patern)
+                    answ = comm.writeParams(port,adr,44,len(patern),patern)
                     if answ!='OK':
                         err+=1
                     if err>0:
