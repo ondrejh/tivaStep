@@ -15,7 +15,7 @@ uint8_t mb_tx_buffer[MBRTU_TX_BUFF_SIZE];
 int mb_tx_char_avail(void);
 char mb_tx_char_get(void);
 void mbrtu_recv_char(char c, uint32_t t);
-void mbrtu_init(void);
+void mbrtu_init_table(uint8_t address);
 /*int mb_tx_char_avail(void);
 char mb_tx_char_get(void);*/
 
@@ -25,7 +25,8 @@ int mb_tx_buff_ptr_out = 0;
 #define MBRTU_RX_BUFF_SIZE 64
 #define MBRTU_TIMEOUT 1823 /* 19.2kBaud, 3.5 * 10 bit */
 
-#define MB_UNIT_ADDRESS 0x01
+#define MB_UNIT_ADDRESS_DEFAULT 0x00
+uint8_t mb_unit_address = MB_UNIT_ADDRESS_DEFAULT;
 
 // modbus function codes
 #define MB_READHOLDREG_FCODE 0x03
@@ -65,7 +66,7 @@ void mbrtu_exception(uint8_t code, uint8_t* mbrtu_rec_buff)
 /* mbrtu_read_registers .. read holding registers (create answer) */
 void mbrtu_read_registers(uint8_t* mbrtu_rec_buff)
 {
-    if ((mbrtu_rec_buff[0]==MB_UNIT_ADDRESS) &&
+    if ((mbrtu_rec_buff[0]==mb_unit_address) &&
         (CRC16((uint8_t *)mbrtu_rec_buff,8)==0)) {
         uint16_t adr = (mbrtu_rec_buff[2]<<8)|mbrtu_rec_buff[3];
         uint16_t len = (mbrtu_rec_buff[4]<<8)|mbrtu_rec_buff[5];
@@ -97,7 +98,7 @@ void mbrtu_read_registers(uint8_t* mbrtu_rec_buff)
 /* mbrtu_write_registers .. write holding registers (create answer) */
 void mbrtu_write_registers(uint8_t* mbrtu_rec_buff,int dlen)
 {
-    if ((mbrtu_rec_buff[0]==MB_UNIT_ADDRESS) &&
+    if ((mbrtu_rec_buff[0]==mb_unit_address) &&
         (CRC16((uint8_t *)mbrtu_rec_buff,dlen)==0)) {
         uint16_t adr = (mbrtu_rec_buff[2]<<8)|mbrtu_rec_buff[3];
         uint16_t len = (mbrtu_rec_buff[4]<<8)|mbrtu_rec_buff[5];
@@ -157,7 +158,7 @@ void mbrtu_recv_char(char c, uint32_t t)
         mbrtu_rec_buff[mbrtu_rec_ptr++]=c;
         if (mbrtu_rec_ptr>=8) {
             // read holding registers message buffer ready
-            if ((mbrtu_rec_buff[0]==MB_UNIT_ADDRESS) &&
+            if ((mbrtu_rec_buff[0]==mb_unit_address) &&
                 (CRC16((uint8_t *)mbrtu_rec_buff,8)==0)) {
                 mbrtu_read_registers(mbrtu_rec_buff);
             }
@@ -169,7 +170,7 @@ void mbrtu_recv_char(char c, uint32_t t)
         if ((mbrtu_rec_ptr>=9)&&(mbrtu_rec_ptr>=mbrtu_rec_buff[6]+9)) {
             // write holding registers message buffer ready
             uint16_t dlen = mbrtu_rec_buff[6]+9;
-            if ((mbrtu_rec_buff[0]==MB_UNIT_ADDRESS) &&
+            if ((mbrtu_rec_buff[0]==mb_unit_address) &&
                 (CRC16((uint8_t *)mbrtu_rec_buff,dlen)==0)) {
                 mbrtu_write_registers(mbrtu_rec_buff,dlen);
             }
@@ -190,8 +191,10 @@ void mbrtu_recv_char(char c, uint32_t t)
 }
 
 /* mbrtu_init .. initialize data table */
-void mbrtu_init(void)
+void mbrtu_init_table(uint8_t address)
 {
+    mb_unit_address = address;
+
     //ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
     int eeerr = ROM_EEPROMInit();
 
