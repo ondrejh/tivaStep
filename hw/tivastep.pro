@@ -1,4 +1,4 @@
-update=13.7.2015 9:24:40
+update=26.8.2015 7:14:56
 version=1
 last_client=kicad
 [cvpcb]
@@ -27,6 +27,16 @@ BoardOutlineThickness=0.100000000000
 ModuleOutlineThickness=0.150000000000
 [general]
 version=1
+[schematic_editor]
+version=1
+PageLayoutDescrFile=
+PlotDirectoryName=
+SubpartIdSeparator=0
+SubpartFirstId=65
+NetFmtName=
+SpiceForceRefPrefix=0
+SpiceUseNetNumbers=0
+LabSize=60
 [eeschema]
 version=1
 LibDir=
@@ -62,13 +72,3 @@ LibName28=opto
 LibName29=atmel
 LibName30=contrib
 LibName31=valves
-[schematic_editor]
-version=1
-PageLayoutDescrFile=
-PlotDirectoryName=
-SubpartIdSeparator=0
-SubpartFirstId=65
-NetFmtName=
-SpiceForceRefPrefix=0
-SpiceUseNetNumbers=0
-LabSize=60
