@@ -1,3 +1,28 @@
+/**
+ * Low level motor steering module
+ *
+ * Uses Timer1A as the periodic timer with interrupt to call low level io functions.
+ *
+ * interface functions:
+ *
+ *  init_motors_lowlevel(void)
+ *      initializes motor GPIOs, variable context and Timer1
+ *
+ *  motor_set_enable(int motor_id, bool enable)
+ *      set/clr motor enable flag
+ *
+ *  motor_set_period(int motor_id, bool run, bool direction, unsigned int step_period)
+ *      set/clr run flag, motor dir flag and step period variable (systicks)
+ *
+ * local function:
+ *
+ *  motor_steps_static(void);
+ *      function is periodically called to perform motor movement according to step_period and status values
+ *
+ *  Timer1IntHandler(void);
+ *      it what the function name saids .. should be connected in startup_gcc.c interrupt vector table
+ **/
+
 #include "includes.h"
 #include "motor.h"
 
@@ -20,8 +45,6 @@
 #define MB_DIR_H() do{ROM_GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_6,GPIO_PIN_6);}while(0)
 #define MB_DIR_L() do{ROM_GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_6,0);}while(0)
 #define MB_FLT (ROM_GPIOPinRead(GPIO_PORTC_BASE,GPIO_PIN_4)!=0)
-
-#define MOTORS 2
 
 #define MOTOR_STATUS_ENABLE 0x1
 #define MOTOR_STATUS_DIRECTION 0x2
