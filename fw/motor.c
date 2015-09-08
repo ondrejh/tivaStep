@@ -235,7 +235,7 @@ void motor_steps_static(void)
     }
 }
 
-void Timer1IntHandler(void)
+void motor_step_timer_interrupt_handler(void)
 {
     ROM_TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
     motor_steps_static();
