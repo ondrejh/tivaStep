@@ -76,24 +76,6 @@
 //
 //*****************************************************************************
 
-// motor A ios
-#define MA_ENA_H() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_4,GPIO_PIN_4);}while(0)
-#define MA_ENA_L() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_4,0);}while(0)
-#define MA_PUL_H() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_2,GPIO_PIN_2);}while(0)
-#define MA_PUL_L() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_2,0);}while(0)
-#define MA_DIR_H() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_3,GPIO_PIN_3);}while(0)
-#define MA_DIR_L() do{GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_3,0);}while(0)
-#define MA_FLT (GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_6)!=0)
-
-// motor B ios
-#define MB_ENA_H() do{GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_5,GPIO_PIN_5);}while(0)
-#define MB_ENA_L() do{GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_5,0);}while(0)
-#define MB_PUL_H() do{GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_7,GPIO_PIN_7);}while(0)
-#define MB_PUL_L() do{GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_7,0);}while(0)
-#define MB_DIR_H() do{GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_6,GPIO_PIN_6);}while(0)
-#define MB_DIR_L() do{GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_6,0);}while(0)
-#define MB_FLT (GPIOPinRead(GPIO_PORTC_BASE,GPIO_PIN_4)!=0)
-
 // onboard leds
 #define LED_RED_ON() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,GPIO_PIN_1);}while(0)
 #define LED_RED_OFF() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1,0);}while(0)

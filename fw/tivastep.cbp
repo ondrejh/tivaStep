@@ -30,6 +30,10 @@
 		<Unit filename="mbrtu_serv.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="motor.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="motor.h" />
 		<Unit filename="project.c">
 			<Option compilerVar="CC" />
 		</Unit>
