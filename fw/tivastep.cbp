@@ -38,6 +38,10 @@
 		<Unit filename="project.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="rs485.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="rs485.h" />
 		<Unit filename="startup_gcc.c">
 			<Option compilerVar="CC" />
 		</Unit>

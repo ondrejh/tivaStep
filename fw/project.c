@@ -43,6 +43,7 @@
 #include "timer.c"
 #include "mbrtu_serv.c"
 #include "motor.h"
+#include "rs485.h"
 
 //*****************************************************************************
 //
@@ -97,30 +98,6 @@ __error__(char *pcFilename, uint32_t ui32Line)
 {
 }
 #endif
-
-// debug console init
-void debugConsoleInit(void)
-{
-  // enable GPIO port A which is used for UART0
-  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-  GPIOPinConfigure(GPIO_PA0_U0RX);
-  GPIOPinConfigure(GPIO_PA1_U0TX);
-
-  // enable UART0
-  SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
-  UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 19200, UART_CONFIG_WLEN_8|UART_CONFIG_PAR_NONE|UART_CONFIG_STOP_TWO);
-  GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-
-  // uart1
-  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-  GPIOPinConfigure(GPIO_PB0_U1RX);
-  GPIOPinConfigure(GPIO_PB1_U1TX);
-
-  // enable UART1
-  SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
-  UARTConfigSetExpClk(UART1_BASE, SysCtlClockGet(), 19200, UART_CONFIG_WLEN_8|UART_CONFIG_PAR_NONE|UART_CONFIG_STOP_TWO);
-  GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-}
 
 #define STATUS_OFFSET 0
 #define COMMAND_OFFSET 1
@@ -178,8 +155,10 @@ int main(void)
     // init clock
     SysCtlClockSet(SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
 
+    ROM_IntMasterEnable();
+
     // init serial console
-    debugConsoleInit();
+    rs485_init();
     mbrtu_init_table(1); // init data table and address
 
     // init exteranl switches
@@ -197,8 +176,6 @@ int main(void)
     GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3);
     GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, 0x00);
     HWREG(GPIO_PORTF_BASE + GPIO_O_CR) = 0x0;
-
-    ROM_IntMasterEnable();
 
     // free running timer init
     init_timer();
@@ -292,45 +269,19 @@ int main(void)
         tLast = tNow;
 
         // UART (modbus)
-        static int modbus_select = -1;
         static uint32_t last_trx = 0;
 
-        //  uart 0 modbus rx
-        if (UARTCharsAvail(UART0_BASE)) {
-            uint32_t trx_now = get_fast_ticks();
-            char c = UARTCharGet(UART0_BASE);
-            if (modbus_select!=0)
-                mbrtu_recv_char(c,MBRTU_TIMEOUT+1);
-            else
-                mbrtu_recv_char(c,(trx_now-last_trx)>>4);
-            last_trx = trx_now;
-            modbus_select = 0;
-        }
         // uart 1 modbus rx
-        if (UARTCharsAvail(UART1_BASE)) {
+        if (RS485CharsAvail()) {
             uint32_t trx_now = get_fast_ticks();
-            char c = UARTCharGet(UART1_BASE);
-            if (modbus_select!=1)
-                mbrtu_recv_char(c,MBRTU_TIMEOUT+1);
-            else
-                mbrtu_recv_char(c,(trx_now-last_trx)>>4);
+            char c = RS485GetChar();
+            mbrtu_recv_char(c,(trx_now-last_trx)>>4);
             last_trx = trx_now;
-            modbus_select = 1;
         }
 
         // modbus tx
-        if (mb_tx_char_avail()>0) {
-            switch (modbus_select) {
-            case 0:
-                UARTCharPut(UART0_BASE,mb_tx_char_get());
-                break;
-            case 1:
-                UARTCharPut(UART1_BASE,mb_tx_char_get());
-                break;
-            default:
-                break;
-            }
-        }
+        if (mb_tx_char_avail()>0)
+            rs485_putch(mb_tx_char_get());
 
         // save data to eeprom
         if (mbData[COMMAND_OFFSET]&EESAVE_COMMAND_BIT) {
