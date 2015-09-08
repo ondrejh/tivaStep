@@ -27,6 +27,7 @@
 		<Unit filename="crc16.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="includes.h" />
 		<Unit filename="mbrtu_serv.c">
 			<Option compilerVar="CC" />
 		</Unit>

@@ -38,28 +38,11 @@
 //
 //*****************************************************************************
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include "inc/hw_can.h"
-#include "inc/hw_ints.h"
-#include "inc/hw_memmap.h"
-#include "inc/hw_types.h"
-#include "inc/hw_gpio.h"
-#include "driverlib/can.h"
-#include "driverlib/debug.h"
-#include "driverlib/gpio.h"
-#include "driverlib/interrupt.h"
-#include "driverlib/pin_map.h"
-#include "driverlib/rom.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/uart.h"
-#include "driverlib/timer.h"
-#include "utils/uartstdio.h"
+#include "includes.h"
 
 #include "timer.c"
 #include "mbrtu_serv.c"
+#include "motor.h"
 
 //*****************************************************************************
 //
@@ -116,25 +99,27 @@ __error__(char *pcFilename, uint32_t ui32Line)
 void debugConsoleInit(void)
 {
   // enable GPIO port A which is used for UART0
-  //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
   GPIOPinConfigure(GPIO_PA0_U0RX);
   GPIOPinConfigure(GPIO_PA1_U0TX);
 
   // enable UART0
-  //SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
   UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 19200, UART_CONFIG_WLEN_8|UART_CONFIG_PAR_NONE|UART_CONFIG_STOP_TWO);
   GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
   // uart1
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
   GPIOPinConfigure(GPIO_PB0_U1RX);
   GPIOPinConfigure(GPIO_PB1_U1TX);
-  //UARTClockSourceSet(UART1_BASE, UART_CLOCK_PIOSC);
-  GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+  // enable UART1
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
   UARTConfigSetExpClk(UART1_BASE, SysCtlClockGet(), 19200, UART_CONFIG_WLEN_8|UART_CONFIG_PAR_NONE|UART_CONFIG_STOP_TWO);
-  //UARTStdioConfig(1, 19200, 16000000);
+  GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 }
 
-int h2i(char c)
+/*int h2i(char c)
 {
     if ((c>='0') && (c<='9'))
         return (c-'0');
@@ -143,12 +128,12 @@ int h2i(char c)
     if ((c>='a') && (c<='f'))
         return (c-'a'+10);
     return -1;
-}
+}*/
 
 // max ticks per one step (~ lowest speed possible .. 2^30)
-#define MAX_TICKS 0x20000000
+//#define MAX_TICKS 0x20000000
 
-typedef struct {
+/*typedef struct {
     float speed;
     uint32_t step_ticks; // number of ticks per one step
     uint32_t step_timer; // timer counter to calculate steps
@@ -169,9 +154,9 @@ typedef struct {
     void (*do_step)();
     void (*set_enable)(_Bool);
     void (*set_dir)(_Bool);
-} motor_t;
+} motor_t;*/
 
-uint32_t spd2ticks(float speed)
+/*uint32_t spd2ticks(float speed)
 {
     float fltTicks = (float)MAX_TICKS;
     if (speed!=0)
@@ -235,7 +220,7 @@ void motor_step(motor_t *m, bool dir)
 
     m->position+=m->run;
     m->do_step();
-}
+}*/
 
 #define STATUS_OFFSET 0
 #define COMMAND_OFFSET 1
@@ -255,15 +240,8 @@ void motor_step(motor_t *m, bool dir)
 int main(void)
 {
     // enable all used peripherals
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA); // uart0, ios
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB); // ios
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC); // ios
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD); // ios
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF); // leds
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0); // uart0
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1); // uart1
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // timer0
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0); // eeprom
+    //SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // timer0
+    //SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0); // eeprom
 
     // init clock
     SysCtlClockSet(SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
@@ -272,28 +250,21 @@ int main(void)
     debugConsoleInit();
     mbrtu_init_table(1); // init data table and address
 
-    // init motor ios
-    // note: don't forget to remove R9, R10 from Tiva C launchpad board !!!
-    GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE,GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4); // motor A PUL,DIR,ENA
-    GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4, 0x00); // PUL,DIR,ENA <- 'L'
-    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE,GPIO_PIN_6); // motor A FLT (input)
-    GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE,GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7); // motor B ENA,DIR,PUL
-    GPIOPinWrite(GPIO_PORTC_BASE,GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7, 0x00); // PUL,DIR,ENA <- 'L'
-    GPIOPinTypeGPIOInput(GPIO_PORTC_BASE,GPIO_PIN_4); // motor B FLT (input)
-
     // init exteranl switches
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD); // ios
     GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3);
 
-    // init unit leds
+    /*// init unit leds
     HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) =  GPIO_LOCK_KEY;
     HWREG(GPIO_PORTD_BASE + GPIO_O_CR) |= 0x80;
     GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, GPIO_PIN_7|GPIO_PIN_6);
     GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_7|GPIO_PIN_6, GPIO_PIN_7|GPIO_PIN_6);
-    //HWREG(GPIO_PORTD_BASE + GPIO_O_CR) = 0x0;
+    //HWREG(GPIO_PORTD_BASE + GPIO_O_CR) = 0x0;*/
 
-    // init leds
+    // init onboard leds and btns
     // Enable pin PF0/4 for GPIOInput
     //First open the lock and select the bits we want to modify in the GPIO commit register.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF); // leds
     HWREG(GPIO_PORTF_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
     HWREG(GPIO_PORTF_BASE + GPIO_O_CR) = 0x1;
     GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_0|GPIO_PIN_4);
@@ -302,31 +273,18 @@ int main(void)
     GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, 0x00);
     HWREG(GPIO_PORTF_BASE + GPIO_O_CR) = 0x0;
 
+    ROM_IntMasterEnable();
+
     // free running timer init
     init_timer();
 
-    // pulse ENA (to clear FLT)
-    MA_ENA_H();
-    MB_ENA_H();
-    wait_micros(100);
-    MA_ENA_L();
-    MB_ENA_L();
-    wait_micros(100);
+    init_motors_lowlevel();
 
-    motor_t m1,m2;
-    motor_init(&m1, (mA_do_step), (mA_set_ena), (mA_set_dir));
-    motor_init(&m2, (mB_do_step), (mB_set_ena), (mB_set_dir));
+    motor_set_enable(0,true);
+    motor_set_enable(1,true);
 
-    mbData[M1_TEST_SPEED_OFFSET] = (int)TEST_SPEED;
-    mbData[M1_TEST_ACCEL_OFFSET] = (int)TEST_ACCEL;
-    mbData[M2_TEST_SPEED_OFFSET] = (int)TEST_SPEED;
-    mbData[M2_TEST_ACCEL_OFFSET] = (int)TEST_ACCEL;
-    float m1_trav_speed = TEST_SPEED;
-    float m1_trav_accel = TEST_ACCEL;
-    float m2_trav_speed = TEST_SPEED;
-    float m2_trav_accel = TEST_ACCEL;
+    uint32_t tLast = get_fast_ticks();
 
-    uint32_t tLast = 0;
 
     // Loop forever.
     while(1)
@@ -334,164 +292,55 @@ int main(void)
         uint32_t tNow = get_fast_ticks();
         uint32_t tDiff = tNow-tLast;
 
-        //if (MA_FLT||MB_FLT) {LED_RED_ON();} else {LED_RED_OFF();}
-
         static int m2seqv = 0;
         static int m1seqv = 0;
+
         switch (m1seqv) {
         case 0: // wait button
             if (SW1) {
-                m1_trav_speed = -(float)mbData[M1_TEST_SPEED_OFFSET];
-                m1_trav_accel = -(float)mbData[M1_TEST_ACCEL_OFFSET];
-                m1.speed = -10;
-                m1.run = 0;
+                motor_set_period(0,true,true,50000);
                 m1seqv++;
-            }
-            else if (SW2) {
-                m1_trav_speed = (float)mbData[M1_TEST_SPEED_OFFSET];
-                m1_trav_accel = (float)mbData[M1_TEST_ACCEL_OFFSET];
-                m1.speed = 10;
-                m1.run = 0;
-                m1seqv=4;
+            } else if (SW2) {
+                motor_set_period(0,true,false,50000);
+                m1seqv+=2;
             }
             break;
-        case 1: // accelerate backward
-            if (SW1) {
-                m1.speed = accel(m1.speed,m1_trav_accel/*-TEST_ACCEL*/,tDiff);
-                if (m1.speed<=m1_trav_speed/*-TEST_SPEED*/) {
-                    m1.speed =m1_trav_speed/*-TEST_SPEED*/;
-                    m1seqv++;
-                }
-            } else m1seqv+=2;
-            break;
-        case 2: // go backward (full speed)
-            if (!(SW1)) m1seqv++;
-            break;
-        case 3:
-            if (SW1) m1seqv-=2;
-            else {
-                m1.speed = accel(m1.speed,-m1_trav_accel/*TEST_ACCEL*/,tDiff);
-                if (m1.speed>=-TEST_MIN_SPEED) {
-                    m1.speed = 0.0;
-                    m1seqv = 0;
-                }
+        case 1:
+            if (!SW1) {
+                motor_set_period(0,false,true,0);
+                m1seqv--;
             }
             break;
-        case 4: // accelerate forward
-            if (SW2) {
-                m1.speed = accel(m1.speed,m1_trav_accel/*TEST_ACCEL*/,tDiff);
-                if (m1.speed>=m1_trav_speed/*TEST_SPEED*/) {
-                    m1.speed =m1_trav_speed/*TEST_SPEED*/;
-                    m1seqv++;
-                }
-            } else m1seqv+=2;
-            break;
-        case 5: // go forward (full speed)
-            if (!(SW2)) m1seqv++;
-            break;
-        case 6: // decelerate
-            if (SW2) m1seqv-=2;
-            else {
-                m1.speed = accel(m1.speed,-m1_trav_accel/*-TEST_ACCEL*/,tDiff);
-                if (m1.speed<=TEST_MIN_SPEED) {
-                    m1.speed = 0.0;
-                    m1seqv = 0;
-                }
+        case 2:
+            if (!SW2) {
+                motor_set_period(0,false,false,0);
+                m1seqv-=2;
             }
-            break;
-        default:
-            m1seqv = 0;
             break;
         }
 
         switch (m2seqv) {
         case 0: // wait button
             if (SW3) {
-                m2_trav_accel = -(float)mbData[M2_TEST_ACCEL_OFFSET];
-                m2_trav_speed = -(float)mbData[M2_TEST_SPEED_OFFSET];
-                m2.speed = -10;
-                m2.run = 0;
+                motor_set_period(1,true,true,50000);
                 m2seqv++;
-            }
-            else if (SW4) {
-                m2_trav_accel = (float)mbData[M2_TEST_ACCEL_OFFSET];
-                m2_trav_speed = (float)mbData[M2_TEST_SPEED_OFFSET];
-                m2.speed = 10;
-                m2.run = 0;
-                m2seqv=4;
+            } else if (SW4) {
+                motor_set_period(1,true,false,50000);
+                m2seqv+=2;
             }
             break;
-        case 1: // accelerate backward
-            if (SW3) {
-                m2.speed = accel(m2.speed,m2_trav_accel/*-TEST_ACCEL*/,tDiff);
-                if (m2.speed<=m2_trav_speed/*-TEST_SPEED*/) {
-                    m2.speed =m2_trav_speed/*-TEST_SPEED*/;
-                    m2seqv++;
-                }
-            } else m2seqv+=2;
-            break;
-        case 2: // go backward (full speed)
-            if (!(SW3)) m2seqv++;
-            break;
-        case 3:
-            if (SW3) m2seqv-=2;
-            else {
-                m2.speed = accel(m2.speed,-m2_trav_accel/*TEST_ACCEL*/,tDiff);
-                if (m2.speed>=-TEST_MIN_SPEED) {
-                    m2.speed = 0.0;
-                    m2seqv = 0;
-                }
+        case 1:
+            if (!SW3) {
+                motor_set_period(1,false,true,0);
+                m2seqv--;
             }
             break;
-        case 4: // accelerate forward
-            if (SW4) {
-                m2.speed = accel(m2.speed,m2_trav_accel/*TEST_ACCEL*/,tDiff);
-                if (m2.speed>=m2_trav_speed/*TEST_SPEED*/) {
-                    m2.speed =m2_trav_speed/*TEST_SPEED*/;
-                    m2seqv++;
-                }
-            } else m2seqv+=2;
-            break;
-        case 5: // go forward (full speed)
-            if (!(SW4)) m2seqv++;
-            break;
-        case 6: // decelerate
-            if (SW4) m2seqv-=2;
-            else {
-                m2.speed = accel(m2.speed,-m2_trav_accel/*-TEST_ACCEL*/,tDiff);
-                if (m2.speed<=TEST_MIN_SPEED) {
-                    m2.speed = 0.0;
-                    m2seqv = 0;
-                }
+        case 2:
+            if (!SW4) {
+                motor_set_period(1,false,false,0);
+                m2seqv-=2;
             }
             break;
-        default:
-            m2seqv = 0;
-            break;
-        }
-
-        if (m1.speed!=0) {
-            m1.step_ticks=spd2ticks(m1.speed);
-            m1.step_timer+=tDiff;
-            if (m1.step_timer>=m1.step_ticks) {
-                motor_step(&m1,(m1.speed>0));
-                m1.step_timer-=m1.step_ticks;
-            }
-        } else {
-            m1.step_timer=0;
-            m1.run=0;
-        }
-
-        if (m2.speed!=0) {
-            m2.step_ticks=spd2ticks(m2.speed);
-            m2.step_timer+=tDiff;
-            if (m2.step_timer>=m2.step_ticks) {
-                motor_step(&m2,(m2.speed>0));
-                m2.step_timer-=m2.step_ticks;
-            }
-        } else {
-            m2.step_timer=0;
-            m2.run=0;
         }
 
         tLast = tNow;

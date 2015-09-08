@@ -43,7 +43,7 @@ bool gtimer_timeout(generic_timer_t *t)
 void init_timer(void)
 {
     // peripheral
-    //SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // timer0
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // timer0
 
     // free running timer
     TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC_UP);

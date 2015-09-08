@@ -195,7 +195,7 @@ void mbrtu_init_table(uint8_t address)
 {
     mb_unit_address = address;
 
-    //ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
+    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
     int eeerr = ROM_EEPROMInit();
 
     if (eeerr!=0) {
