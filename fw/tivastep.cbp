@@ -42,6 +42,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="rs485.h" />
+		<Unit filename="rtc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="rtc.h" />
 		<Unit filename="startup_gcc.c">
 			<Option compilerVar="CC" />
 		</Unit>

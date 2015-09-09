@@ -88,9 +88,10 @@ ${COMPILER}:
 #${COMPILER}/project.axf: ${COMPILER}/cfa196x64x16.o
 ${COMPILER}/project.axf: ${COMPILER}/startup_${COMPILER}.o
 ${COMPILER}/project.axf: ${COMPILER}/project.o
-${COMPILER}/project.axf: ${COMPILER}/uartstdio.o
 ${COMPILER}/project.axf: ${COMPILER}/motor.o
 ${COMPILER}/project.axf: ${COMPILER}/rs485.o
+${COMPILER}/project.axf: ${COMPILER}/rtc.o
+${COMPILER}/project.axf: ${COMPILER}/uartstdio.o
 ${COMPILER}/project.axf: ${ROOT}/grlib/${COMPILER}/libgr.a
 ${COMPILER}/project.axf: ${ROOT}/driverlib/${COMPILER}/libdriver.a
 ${COMPILER}/project.axf: project.ld
