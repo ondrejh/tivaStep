@@ -22,10 +22,12 @@ def setTime(port,adr,time):
     answ = comm.writeParams(port,adr,RTC_SET_ADDRESS,2,[time&0xFFFF,(time>>16)&0xFFFF])
     return answ
 
-with serial.Serial(portname,comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
+if __name__ == "__main__":
 
-    #print(setTime(port,modbus_adr,round(time.time())))
+    with serial.Serial(portname,comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
 
-    for i in range(100):
-        print(getTime(port,modbus_adr))
+        print(setTime(port,modbus_adr,round(time.time())))
+
+        for i in range(100):
+            print(getTime(port,modbus_adr))
 
