@@ -32,8 +32,11 @@ uint8_t mb_unit_address = MB_UNIT_ADDRESS_DEFAULT;
 #define MB_READHOLDREG_FCODE 0x03
 #define MB_WRITEHOLDREG_FCODE 0x10
 
-#define LED_MB_ON() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,GPIO_PIN_3);}while(0)
-#define LED_MB_OFF() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);}while(0)
+//#define LED_MB_ON() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,GPIO_PIN_3);}while(0)
+//#define LED_MB_OFF() do{GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);}while(0)
+#define LED_MB_ON() do{}while(0)
+#define LED_MB_OFF() do{}while(0)
+
 
 #define MBRTU_TX_BUFF_SIZE 64
 
