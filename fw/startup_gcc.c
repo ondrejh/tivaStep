@@ -55,6 +55,8 @@ static void IntDefaultHandler(void);
 extern void motor_step_timer_interrupt_handler(void);
 extern void rs485_eot_interrupt_handler(void);
 
+extern void error_state(void);
+
 //*****************************************************************************
 //
 // The entry point for the application.
@@ -316,6 +318,7 @@ ResetISR(void)
 static void
 NmiSR(void)
 {
+    error_state();
     //
     // Enter an infinite loop.
     //
@@ -334,6 +337,7 @@ NmiSR(void)
 static void
 FaultISR(void)
 {
+    error_state();
     //
     // Enter an infinite loop.
     //
@@ -352,6 +356,7 @@ FaultISR(void)
 static void
 IntDefaultHandler(void)
 {
+    error_state();
     //
     // Go into an infinite loop.
     //

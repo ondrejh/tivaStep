@@ -100,6 +100,11 @@ __error__(char *pcFilename, uint32_t ui32Line)
 }
 #endif
 
+void error_state(void)
+{
+    LED_RED_ON();
+}
+
 #define STATUS_OFFSET 0
 #define COMMAND_OFFSET 1
 #define EESAVE_COMMAND_BIT 0x0100
@@ -113,8 +118,9 @@ __error__(char *pcFilename, uint32_t ui32Line)
 #define M2_TEST_SPEED_OFFSET 6
 #define M2_TEST_ACCEL_OFFSET 7
 
-#define RTC_TIME_OFFSET 8
-#define RTC_SET_OFFSET 10
+#define RTC_SET_OFFSET 8 // registers to set rtc time - 2 registers
+#define RTC_TIME_OFFSET 10 // registers contains rtc time
+#define RTC_TIME_SUBS_OFFSET 12
 
 #define M_TEST_SPEED_OFFSET(x) ((x==0)?M1_TEST_SPEED_OFFSET:M2_TEST_SPEED_OFFSET)
 #define M_TEST_ACCEL_OFFSET(x) ((x==0)?M1_TEST_ACCEL_OFFSET:M2_TEST_ACCEL_OFFSET)
@@ -197,13 +203,20 @@ int main(void)
 
     uint32_t tLast = get_fast_ticks();
 
-    uint32_t rtcss;
+    uint32_t *rtcss = (uint32_t*)&mbData[RTC_TIME_OFFSET+2];
     uint32_t *rtcs = (uint32_t*)&mbData[RTC_TIME_OFFSET];
     uint32_t *rtcs_set = (uint32_t*)&mbData[RTC_SET_OFFSET];
 
     // Loop forever.
     while(1)
     {
+        // rtc (update and read timer)
+        if (*rtcs_set!=0) {
+            rtc_set_time(*rtcs_set);
+            *rtcs_set = 0;
+        }
+        else rtc_get_time(rtcs,rtcss);
+
         uint32_t tNow = get_fast_ticks();
         uint32_t tDiff = tNow-tLast;
 
@@ -283,7 +296,7 @@ int main(void)
 
         // modbus rx
         if (RS485CharsAvail()) {
-            uint32_t trx_now = get_fast_ticks();
+            uint32_t trx_now = tNow;
             char c = RS485GetChar();
             mbrtu_recv_char(c,(trx_now-last_trx)>>4);
             last_trx = trx_now;
@@ -297,13 +310,6 @@ int main(void)
         if (mbData[COMMAND_OFFSET]&EESAVE_COMMAND_BIT) {
             mbrtu_save_eeprom();
             mbData[COMMAND_OFFSET]&=~EESAVE_COMMAND_BIT;
-        }
-
-        // rtc (update or read timer)
-        if (*rtcs_set==0) rtc_get_time(rtcs,&rtcss);
-        else {
-            rtc_set_time(*rtcs_set);
-            *rtcs_set = 0;
         }
     }
 }

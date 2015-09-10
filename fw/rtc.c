@@ -1,6 +1,9 @@
 #include "includes.h"
 #include "rtc.h"
 
+/**
+ * initialize rtc module
+ **/
 void rtc_init(void)
 {
     HibernateEnableExpClk(SysCtlClockGet());
@@ -8,6 +11,12 @@ void rtc_init(void)
     HibernateRTCEnable();
 }
 
+/**
+ * read rtc time
+ *
+ * output: s .. seconds
+ *         subs .. subseconds
+ **/
 void rtc_get_time(uint32_t *s,uint32_t *subs)
 {
     uint32_t ls1,ls2,lss;
@@ -26,6 +35,11 @@ void rtc_get_time(uint32_t *s,uint32_t *subs)
     *subs = lss;
 }
 
+/**
+ * set rtc time
+ *
+ * input: s .. seconds
+ **/
 void rtc_set_time(uint32_t s)
 {
     HWREG(HIB_RTCLD) = s;
