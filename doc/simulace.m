@@ -2,14 +2,15 @@ close all
 clear all
 
 bodA = 8000; % kroku
-bodB = 7950; % kroku
+bodB = 7500; % kroku
 
-dt = 0.001; % casovy krok simulace
+dt = 0.0001; % casovy krok simulace
 
 constA = 5000; % kroku za sekundu^2
 constV = 2000; % kroku za sekundu
+constVmin = 100;
 
-v0 = constV; % vychozi rychlost
+v0 = 0;%constV; % vychozi rychlost
 
 t = 0;
 bodP = bodA;
@@ -18,14 +19,17 @@ v = v0;
 
 data = [t,bodP,v];
 
-for i=(0:12000)
+for i=(0:20000)
   smerA = 0;
-  if ((bodB-bodP)>0)
+  if ((round(bodB-bodP))>0)
     smerA = constA;
-  elseif ((bodB-bodP)<0)
+  elseif ((round(bodB-bodP))<0)
     smerA = -constA;
   else
     smerA = 0;
+    if abs(v)<constVmin
+      v=0;
+    endif
   endif
   t = t+dt;
   a = smerA;
@@ -46,8 +50,8 @@ for i=(0:12000)
   endif
   bodP = bodP+v*dt;
   data = [data;[t,bodP,v]];
-  if abs(v)<10
-    if round(bodB-bodP)==0
+  if v==0
+    if round(bodB)==round(bodP)
       break
     endif
   endif
