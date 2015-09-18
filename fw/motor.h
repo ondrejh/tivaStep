@@ -8,4 +8,6 @@ void init_motors_lowlevel(void);
 void motor_set_enable(int motor_id, bool enable);
 void motor_set_period(int motor_id, bool run, bool direction, unsigned int step_period);
 
+uint32_t motor_get_position(int id);
+
 #endif // __MOTOR_H__

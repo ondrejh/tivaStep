@@ -41,7 +41,8 @@
 #include "includes.h"
 
 #include "timer.c"
-#include "mbrtu_serv.c"
+#include "mbrtu_serv.h"
+#include "params.h"
 #include "motor.h"
 #include "rs485.h"
 #include "rtc.h"
@@ -113,14 +114,12 @@ void error_state(void)
 #define TEST_ACCEL 5000.0
 #define TEST_MIN_SPEED 10.0
 
-#define M1_TEST_SPEED_OFFSET 4
+/*#define M1_TEST_SPEED_OFFSET 4
 #define M1_TEST_ACCEL_OFFSET 5
 #define M2_TEST_SPEED_OFFSET 6
-#define M2_TEST_ACCEL_OFFSET 7
+#define M2_TEST_ACCEL_OFFSET 7*/
 
-#define RTC_SET_OFFSET 8 // registers to set rtc time - 2 registers
-#define RTC_TIME_OFFSET 10 // registers contains rtc time
-#define RTC_TIME_SUBS_OFFSET 12
+//#define RTC_TIME_SUBS_OFFSET 12
 
 #define M_TEST_SPEED_OFFSET(x) ((x==0)?M1_TEST_SPEED_OFFSET:M2_TEST_SPEED_OFFSET)
 #define M_TEST_ACCEL_OFFSET(x) ((x==0)?M1_TEST_ACCEL_OFFSET:M2_TEST_ACCEL_OFFSET)
@@ -171,7 +170,8 @@ int main(void)
 
     // init serial console
     rs485_init();
-    mbrtu_init_table(1); // init data table and address
+    init_table();
+    //mbrtu_init_table(1); // init data table and address
 
     // init exteranl switches
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD); // ios
@@ -203,19 +203,19 @@ int main(void)
 
     uint32_t tLast = get_fast_ticks();
 
-    uint32_t *rtcss = (uint32_t*)&mbData[RTC_TIME_OFFSET+2];
-    uint32_t *rtcs = (uint32_t*)&mbData[RTC_TIME_OFFSET];
-    uint32_t *rtcs_set = (uint32_t*)&mbData[RTC_SET_OFFSET];
+    uint32_t rtcs,rtcss;
 
     // Loop forever.
     while(1)
     {
         // rtc (update and read timer)
-        if (*rtcs_set!=0) {
-            rtc_set_time(*rtcs_set);
-            *rtcs_set = 0;
+        if (tab_read(RTC_SET_OFFSET)!=0) {
+            rtc_set_time(tab_read(RTC_SET_OFFSET));
+            tab_write(RTC_SET_OFFSET,0);
         }
-        else rtc_get_time(rtcs,rtcss);
+        else rtc_get_time(&rtcs,&rtcss);
+        if (tab_read(RTC_TIME_OFFSET)!=rtcs)
+            tab_write(RTC_TIME_OFFSET,rtcs);
 
         uint32_t tNow = get_fast_ticks();
         uint32_t tDiff = tNow-tLast;
@@ -223,17 +223,19 @@ int main(void)
         int i;
         for (i=0;i<MOTORS;i++)
         {
+            tab_write(M1_POSITION+i,motor_get_position(i));
+
             switch (m[i].seqv) {
             case 0:
                 if (SWn1(i)) {
-                    m[i].finalspeed = (float)mbData[M_TEST_SPEED_OFFSET(i)];
-                    m[i].accel = (float)mbData[M_TEST_ACCEL_OFFSET(i)];
+                    m[i].finalspeed = (float)tab_read_16b(M_TEST_SPEED_OFFSET(i));
+                    m[i].accel = (float)tab_read_16b(M_TEST_ACCEL_OFFSET(i));
                     m[i].speed = 10;
                     m[i].seqv++;
                 }
                 else if (SWn2(i)) {
-                    m[i].finalspeed = -(float)mbData[M_TEST_SPEED_OFFSET(i)];
-                    m[i].accel = -(float)mbData[M_TEST_ACCEL_OFFSET(i)];
+                    m[i].finalspeed = -(float)tab_read_16b(M_TEST_SPEED_OFFSET(i));
+                    m[i].accel = -(float)tab_read_16b(M_TEST_ACCEL_OFFSET(i));
                     m[i].speed = -10;
                     m[i].seqv=4;
                 }
@@ -293,23 +295,17 @@ int main(void)
 
         // UART (modbus)
         static uint32_t last_trx = 0;
+        if ((tNow-last_trx)>30000) mbrtu_rec_reset();
 
         // modbus rx
         if (RS485CharsAvail()) {
-            uint32_t trx_now = tNow;
             char c = RS485GetChar();
-            mbrtu_recv_char(c,(trx_now-last_trx)>>4);
-            last_trx = trx_now;
+            last_trx = tNow;
+            mbrtu_recv_char(c);
         }
 
         // modbus tx
         if (mb_tx_char_avail()>0)
             rs485_putch(mb_tx_char_get());
-
-        // save data to eeprom
-        if (mbData[COMMAND_OFFSET]&EESAVE_COMMAND_BIT) {
-            mbrtu_save_eeprom();
-            mbData[COMMAND_OFFSET]&=~EESAVE_COMMAND_BIT;
-        }
     }
 }

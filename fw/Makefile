@@ -88,6 +88,8 @@ ${COMPILER}:
 #${COMPILER}/project.axf: ${COMPILER}/cfa196x64x16.o
 ${COMPILER}/project.axf: ${COMPILER}/startup_${COMPILER}.o
 ${COMPILER}/project.axf: ${COMPILER}/project.o
+${COMPILER}/project.axf: ${COMPILER}/mbrtu_serv.o
+${COMPILER}/project.axf: ${COMPILER}/params.o
 ${COMPILER}/project.axf: ${COMPILER}/motor.o
 ${COMPILER}/project.axf: ${COMPILER}/rs485.o
 ${COMPILER}/project.axf: ${COMPILER}/rtc.o

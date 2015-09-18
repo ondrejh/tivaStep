@@ -60,9 +60,18 @@ typedef struct {
     unsigned int ios;
     unsigned int step_period;
     unsigned int step_period_counter;
+    uint32_t position;
 } motor_lowlev_t;
 
 motor_lowlev_t motors_lowlev[MOTORS];
+
+/**
+ * get motor position
+ **/
+uint32_t motor_get_position(int id)
+{
+    return motors_lowlev[id].position;
+}
 
 /**
  * initializes motors ios and internal low level variables
@@ -75,6 +84,7 @@ void init_motors_lowlevel(void)
         motors_lowlev[i].step_period=0;
         motors_lowlev[i].ios=0;
         motors_lowlev[i].step_period_counter=0;
+        motors_lowlev[i].position=0;
     }
 
     // enable used peripherals
