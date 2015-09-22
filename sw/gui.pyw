@@ -179,7 +179,37 @@ class app:
             messagebox.showwarning('Warning','No serial module found!\nProbably PYSERIAL not installed.')
 
     def goto_position(self):
-        pass
+        
+        adr = 1
+        try:
+            adr = int(self.adrVar.get())
+        except:
+            messagebox.showerror('Error',message="Incorrect address format ".format(self.adrVar.get()))
+            return
+
+        p1 = 0
+        p2 = 0
+
+        try:
+            p1 = int(self.m1GotVar.get())
+            p2 = int(self.m2GotVar.get())
+        except:
+            p1 = None
+
+        if p1!=None:
+            try:
+                with serial.Serial(self.comVar.get(),comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
+                    err = 0
+                    answ = comm.writeParams(port,adr,16,4,[p1&0xFFFF,(p1>>16)&0xFFFF,
+                                                           p2&0xFFFF,(p2>>16)&0xFFFF])
+                    if answ!='OK':
+                        err+=1
+                    if err>0:
+                        messagebox.showerror('Error',"Can't write some params")
+            except:
+                messagebox.showerror('Error',message="Can't open serial port {}".format(self.comVar.get()))
+        else:
+            messagebox.showerror('Error',message="The desired position syntax error")
 
     def get_position(self):
 
@@ -193,12 +223,14 @@ class app:
         try:
             with serial.Serial(self.comVar.get(),comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
                 err = 0
-                answ = comm.readParams(port,adr,12,4)
-                if answ[0]!=4:
+                answ = comm.readParams(port,adr,12,8)
+                if answ[0]!=8:
                     err+=1
                 else:
                     self.m1PosVar.set('{}'.format(answ[1][0]+(answ[1][1]<<16)))
                     self.m2PosVar.set('{}'.format(answ[1][2]+(answ[1][3]<<16)))
+                    self.m1GotVar.set('{}'.format(answ[1][4]+(answ[1][5]<<16)))
+                    self.m2GotVar.set('{}'.format(answ[1][6]+(answ[1][7]<<16)))
                 if err>0:
                     messagebox.showerror('Error',"Can't read some params")
         except:
@@ -261,6 +293,7 @@ class app:
         try:
             with serial.Serial(self.comVar.get(),comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
                 err = 0
+                
                 answ = comm.readParams(port,adr,4,4)
                 if answ[0]!=4:
                     err+=1
@@ -269,12 +302,16 @@ class app:
                     self.m1AccelVar.set('{}'.format(answ[1][1]))
                     self.m2SpeedVar.set('{}'.format(answ[1][2]))
                     self.m2AccelVar.set('{}'.format(answ[1][3]))
-                answ = comm.readParams(port,adr,12,4)
-                if answ[0]!=4:
+                    
+                answ = comm.readParams(port,adr,12,8)
+                if answ[0]!=8:
                     err+=1
                 else:
                     self.m1PosVar.set('{}'.format(answ[1][0]+(answ[1][1]<<16)))
                     self.m2PosVar.set('{}'.format(answ[1][2]+(answ[1][3]<<16)))
+                    self.m1GotVar.set('{}'.format(answ[1][4]+(answ[1][5]<<16)))
+                    self.m2GotVar.set('{}'.format(answ[1][6]+(answ[1][7]<<16)))
+                    
                 if err>0:
                     messagebox.showerror('Error',"Can't read some params")
                     
