@@ -89,7 +89,7 @@ void mbrtu_write_registers(void)
     uint16_t len = (mbrtu_rec_buff[4]<<8)|mbrtu_rec_buff[5];
 
     int i;
-    int ptr = 6;
+    int ptr = 7;
     uint16_t d16b;
 
     for (i=0;i<len;i++) {

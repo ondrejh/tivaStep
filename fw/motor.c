@@ -60,18 +60,10 @@ typedef struct {
     unsigned int ios;
     unsigned int step_period;
     unsigned int step_period_counter;
-    uint32_t position;
+    int32_t position;
 } motor_lowlev_t;
 
 motor_lowlev_t motors_lowlev[MOTORS];
-
-/**
- * get motor position
- **/
-uint32_t motor_get_position(int id)
-{
-    return motors_lowlev[id].position;
-}
 
 /**
  * initializes motors ios and internal low level variables
@@ -194,12 +186,14 @@ void motor_steps_static(void)
                 if (motors_lowlev[0].step_period_counter>=motors_lowlev[0].step_period) {
                     motors_lowlev[0].step_period_counter-=motors_lowlev[0].step_period;
                     motors_lowlev[0].ios|=MOTOR_IOS_PUL;
+                    motors_lowlev[0].position+=(motors_lowlev[0].ios&MOTOR_IOS_DIR)?1:-1;
                     MA_PUL_H();
                 }
                 else if ((motors_lowlev[0].status&MOTOR_STATUS_FIRSTSTEP)!=0) {
                     motors_lowlev[0].step_period_counter=0;
                     motors_lowlev[0].status&=~MOTOR_STATUS_FIRSTSTEP;
                     motors_lowlev[0].ios|=MOTOR_IOS_PUL;
+                    motors_lowlev[0].position+=(motors_lowlev[0].ios&MOTOR_IOS_DIR)?1:-1;
                     MA_PUL_H();
                 }
             }
@@ -232,16 +226,39 @@ void motor_steps_static(void)
                 if (motors_lowlev[1].step_period_counter>=motors_lowlev[1].step_period) {
                     motors_lowlev[1].step_period_counter-=motors_lowlev[1].step_period;
                     motors_lowlev[1].ios|=MOTOR_IOS_PUL;
+                    motors_lowlev[1].position+=(motors_lowlev[1].ios&MOTOR_IOS_DIR)?1:-1;
                     MB_PUL_H();
                 }
                 else if ((motors_lowlev[1].status&MOTOR_STATUS_FIRSTSTEP)!=0) {
                     motors_lowlev[1].step_period_counter=0;
                     motors_lowlev[1].status&=~MOTOR_STATUS_FIRSTSTEP;
                     motors_lowlev[1].ios|=MOTOR_IOS_PUL;
+                    motors_lowlev[1].position+=(motors_lowlev[1].ios&MOTOR_IOS_DIR)?1:-1;
                     MB_PUL_H();
                 }
             }
         }
+    }
+}
+
+/**
+ * get position counter value
+ **/
+int32_t motor_get_position(unsigned int id)
+{
+    if (id<MOTORS)
+        return motors_lowlev[id].position;
+    return 0;
+}
+/**
+ * set position counter value
+ **/
+void motor_set_position(unsigned int id, int32_t pos)
+{
+    if (id<MOTORS) {
+        ROM_IntMasterDisable();
+        motors_lowlev[id].position = pos;
+        ROM_IntMasterEnable();
     }
 }
 

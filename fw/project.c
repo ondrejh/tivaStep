@@ -110,25 +110,21 @@ void error_state(void)
 #define COMMAND_OFFSET 1
 #define EESAVE_COMMAND_BIT 0x0100
 
-#define TEST_SPEED 2000.0
-#define TEST_ACCEL 5000.0
+//#define TEST_SPEED 2000.0
+//#define TEST_ACCEL 5000.0
 #define TEST_MIN_SPEED 10.0
-
-/*#define M1_TEST_SPEED_OFFSET 4
-#define M1_TEST_ACCEL_OFFSET 5
-#define M2_TEST_SPEED_OFFSET 6
-#define M2_TEST_ACCEL_OFFSET 7*/
-
-//#define RTC_TIME_SUBS_OFFSET 12
 
 #define M_TEST_SPEED_OFFSET(x) ((x==0)?M1_TEST_SPEED_OFFSET:M2_TEST_SPEED_OFFSET)
 #define M_TEST_ACCEL_OFFSET(x) ((x==0)?M1_TEST_ACCEL_OFFSET:M2_TEST_ACCEL_OFFSET)
+
+#define M_POSITION_OFFSET(x) ((x==0)?M1_POSITION_OFFSET:M2_POSITION_OFFSET)
 
 typedef struct {
     float speed;
     float finalspeed;
     float accel;
     int seqv;
+    int32_t position;
 } motor_t;
 
 void motor_init(motor_t *m)
@@ -136,6 +132,7 @@ void motor_init(motor_t *m)
     m->speed = 0.0;
     m->accel = 0.0;
     m->seqv = 0;
+    m->position = 0;
 }
 
 float accel(float spd, float acl, uint32_t dt)
@@ -167,6 +164,7 @@ int main(void)
     ROM_IntMasterEnable();
 
     rtc_init();
+    init_table();
 
     // init serial console
     rs485_init();
@@ -213,7 +211,8 @@ int main(void)
             rtc_set_time(tab_read(RTC_SET_OFFSET));
             tab_write(RTC_SET_OFFSET,0);
         }
-        else rtc_get_time(&rtcs,&rtcss);
+
+        rtc_get_time(&rtcs,&rtcss);
         if (tab_read(RTC_TIME_OFFSET)!=rtcs)
             tab_write(RTC_TIME_OFFSET,rtcs);
 
@@ -223,7 +222,8 @@ int main(void)
         int i;
         for (i=0;i<MOTORS;i++)
         {
-            tab_write(M1_POSITION+i,motor_get_position(i));
+            m[i].position = motor_get_position(i);
+            tab_write(M_POSITION_OFFSET(i),(uint32_t)m[i].position);
 
             switch (m[i].seqv) {
             case 0:
@@ -295,6 +295,8 @@ int main(void)
 
         // UART (modbus)
         static uint32_t last_trx = 0;
+        if ((tNow-last_trx)>30000) mbrtu_rec_reset();
+
         if ((tNow-last_trx)>30000) mbrtu_rec_reset();
 
         // modbus rx

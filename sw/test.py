@@ -61,6 +61,7 @@ def writeParams(port,id,addr,count,data):
     for d in data:
         msg += bytes([d>>8,d&0xFF])
     msg = addCRC16(msg)
+    #print(msg)
     port.write(msg)
 
     answ = port.read(256)
