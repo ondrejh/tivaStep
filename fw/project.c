@@ -119,17 +119,24 @@ void error_state(void)
 #define M2_TEST_SPEED_OFFSET 6
 #define M2_TEST_ACCEL_OFFSET 7
 
+    #define M_TEST_SPEED_OFFSET(x) ((x==0)?M1_TEST_SPEED_OFFSET:M2_TEST_SPEED_OFFSET)
+    #define M_TEST_ACCEL_OFFSET(x) ((x==0)?M1_TEST_ACCEL_OFFSET:M2_TEST_ACCEL_OFFSET)
+
 #define RTC_SET_OFFSET 4 // 32 bit register to set rtc time
 #define RTC_TIME_OFFSET 5 // 32 bit register containing rtc time
 
-#define M_TEST_SPEED_OFFSET(x) ((x==0)?M1_TEST_SPEED_OFFSET:M2_TEST_SPEED_OFFSET)
-#define M_TEST_ACCEL_OFFSET(x) ((x==0)?M1_TEST_ACCEL_OFFSET:M2_TEST_ACCEL_OFFSET)
+#define M1_POSITION_OFFSET 6 // 32 bit position register
+#define M2_POSITION_OFFSET 7
+
+    #define M_POSITION_OFFSET(x) ((x==0)?M1_POSITION_OFFSET:M2_POSITION_OFFSET)
+
 
 typedef struct {
     float speed;
     float finalspeed;
     float accel;
     int seqv;
+    int32_t position;
 } motor_t;
 
 void motor_init(motor_t *m)
@@ -137,6 +144,7 @@ void motor_init(motor_t *m)
     m->speed = 0.0;
     m->accel = 0.0;
     m->seqv = 0;
+    m->position = 0;
 }
 
 float accel(float spd, float acl, uint32_t dt)
@@ -205,18 +213,19 @@ int main(void)
     uint32_t tLast = get_fast_ticks();
 
     uint32_t rtcss,rtcs;
+    uint32_t rtcset;
 
     // Loop forever.
     while(1)
     {
         // rtc (update and read timer)
-        /*rtcs = tab_read(RTC_SET_OFFSET);
-        if (rtcs!=0) {
+        rtcset = tab_read(RTC_SET_OFFSET);
+        if (rtcset!=0) {
             tab_write(RTC_SET_OFFSET,0);
-            rtc_set_time(rtcs);
-            rtcss=0;
-        } else*/
-            rtc_get_time(&rtcs,&rtcss);
+            rtc_set_time(rtcset);
+        }
+
+        rtc_get_time(&rtcs,&rtcss);
 
         if (rtcs!=tab_read(RTC_TIME_OFFSET))
             tab_write(RTC_TIME_OFFSET,rtcs);
@@ -227,6 +236,9 @@ int main(void)
         int i;
         for (i=0;i<MOTORS;i++)
         {
+            m[i].position = motor_get_position(i);
+            tab_write(M_POSITION_OFFSET(i),(uint32_t)m[i].position);
+
             switch (m[i].seqv) {
             case 0:
                 if (SWn1(i)) {

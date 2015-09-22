@@ -67,10 +67,8 @@ uint16_t tab_read_16b(int pos16)
     int pos32 = pos16>>1;
     uint32_t val32 = table[pos32];
 
-    if ((pos16&0x1)==0)
-        val32 &= 0xFFFF;
-    else
+    if ((pos16&0x1)!=0)
         val32 >>= 16;
 
-    return val32;
+    return (uint16_t)val32&0xFFFF;
 }
