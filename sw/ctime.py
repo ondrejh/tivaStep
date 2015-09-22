@@ -9,6 +9,7 @@ RTC_SET_ADDRESS = 8
 RTC_TIME_ADDRESS = 10
 
 MOTOR_POSITION_ADDRESS = 12
+MOTOR_GOTOPOS_ADDRESS = 16
 
 def getTime(port,adr):
 
@@ -35,11 +36,17 @@ def getPosition(port,adr):
     except:
         return answ
 
+def setGotoPosition(port,adr,pos1,pos2):
+
+    answ = comm.writeParams(port,adr,MOTOR_GOTOPOS_ADDRESS,4,[pos1&0xFFFF,(pos1>>16)&0xFFFF,pos2&0xFFFF,(pos2>>16)&0xFFFF])
+    return answ
+
 if __name__ == "__main__":
 
     with serial.Serial(portname,comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
 
         print(getPosition(port,modbus_adr))
+        print(setGotoPosition(port,modbus_adr,3000,-10000))
 
         t = round(time.time())
         print(setTime(port,modbus_adr,round(time.time())))

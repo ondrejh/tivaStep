@@ -118,26 +118,36 @@ void error_state(void)
 #define M_TEST_ACCEL_OFFSET(x) ((x==0)?M1_TEST_ACCEL_OFFSET:M2_TEST_ACCEL_OFFSET)
 
 #define M_POSITION_OFFSET(x) ((x==0)?M1_POSITION_OFFSET:M2_POSITION_OFFSET)
+#define M_GOTOPOS_OFFSET(x) ((x==0)?M1_GOTOPOS_OFFSET:M2_GOTOPOS_OFFSET)
 
 typedef struct {
     float speed;
-    float finalspeed;
     float accel;
-    int seqv;
     int32_t position;
+    int32_t gotopos;
 } motor_t;
 
 void motor_init(motor_t *m)
 {
     m->speed = 0.0;
     m->accel = 0.0;
-    m->seqv = 0;
     m->position = 0;
+    m->gotopos = 0;
 }
 
 float accel(float spd, float acl, uint32_t dt)
 {
     return (spd + (acl*dt/TICKS_PER_SECOND));
+}
+
+float accel_limit(float spd, float spdlim, float acl, uint32_t dt)
+{
+    float ret = spd + (acl*dt/TICKS_PER_SECOND);
+    if (ret>spdlim)
+        ret = spdlim;
+    if (ret<-spdlim)
+        ret = -spdlim;
+    return ret;
 }
 
 // max ticks per one step (~ lowest speed possible .. 2^30)
@@ -153,6 +163,29 @@ uint32_t spd2ticks(float speed)
     if (fltTicks>(float)MAX_TICKS)
         fltTicks=(float)MAX_TICKS;
     return (uint32_t)fltTicks;
+}
+
+int32_t steps_to_stop(float speed, float accel)
+{
+    float st2st = speed*speed/accel/2.0;
+    return (int32_t)st2st;
+}
+
+float absf(float f)
+{
+    if (f<0)
+        return -f;
+    return f;
+}
+
+int sigf(float f)
+{
+    if (f<0)
+        return -1;
+    else if (f>0)
+        return 1;
+    else
+        return 0;
 }
 
 // main program
@@ -225,7 +258,26 @@ int main(void)
             m[i].position = motor_get_position(i);
             tab_write(M_POSITION_OFFSET(i),(uint32_t)m[i].position);
 
-            switch (m[i].seqv) {
+            m[i].gotopos = tab_read(M_GOTOPOS_OFFSET(i));
+
+            int32_t epos = m[i].gotopos-m[i].position;
+            if (epos>0) {
+                m[i].accel = (float)tab_read_16b(M_TEST_ACCEL_OFFSET(i));
+                if (steps_to_stop(m[i].speed,m[i].accel)>epos)
+                    m[i].accel = -m[i].accel;
+            } else if (epos<0) {
+                m[i].accel = -(float)tab_read_16b(M_TEST_ACCEL_OFFSET(i));
+                if (steps_to_stop(m[i].speed,m[i].accel)<epos)
+                    m[i].accel = -m[i].accel;
+            } else {
+                if (absf(m[i].speed) < (float)TEST_MIN_SPEED) {
+                    m[i].accel = 0.0;
+                    m[i].speed = 0.0;
+                } else
+                    m[i].accel = -(float)(tab_read_16b(M_TEST_ACCEL_OFFSET(i))*sigf(m[i].speed));
+            }
+
+            /*switch (m[i].seqv) {
             case 0:
                 if (SWn1(i)) {
                     m[i].finalspeed = (float)tab_read_16b(M_TEST_SPEED_OFFSET(i));
@@ -284,7 +336,9 @@ int main(void)
                     }
                 }
                 break;
-            }
+            }*/
+
+            m[i].speed = accel_limit(m[i].speed,(float)tab_read_16b(M_TEST_SPEED_OFFSET(i)),m[i].accel,tDiff);
 
             if (m[i].speed>0) motor_set_period(i,true,true,spd2ticks(m[i].speed));
             else if (m[i].speed<0) motor_set_period(i,true,false,spd2ticks(-m[i].speed));

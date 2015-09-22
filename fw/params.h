@@ -16,6 +16,8 @@
 
 #define M1_POSITION_OFFSET 6 // 32 bit position register
 #define M2_POSITION_OFFSET 7
+#define M1_GOTOPOS_OFFSET 8
+#define M2_GOTOPOS_OFFSET 9
 
 void init_table(void);
 void tab_write(int pos, uint32_t value);
