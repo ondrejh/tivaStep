@@ -103,7 +103,7 @@ class app:
         m1posunlab = Label(position,text='Steps',font=labelFont)
         m1posunlab.grid(row=1,column=2)
         self.m1PosVar = StringVar(master,'-')
-        self.m1posentry = Entry(position,width=8,textvariable=self.m1PosVar,font=entryFont,justify=CENTER)
+        self.m1posentry = Entry(position,width=8,textvariable=self.m1PosVar,font=entryFont,justify=CENTER,state=DISABLED)
         self.m1posentry.grid(row=1,column=1)
 
         m2poslab = Label(position,text='Y',font=labelFont)
@@ -111,7 +111,7 @@ class app:
         m2posunlab = Label(position,text='Steps',font=labelFont)
         m2posunlab.grid(row=2,column=2)
         self.m2PosVar = StringVar(master,'-')
-        self.m2posentry = Entry(position,width=8,textvariable=self.m2PosVar,font=entryFont,justify=CENTER)
+        self.m2posentry = Entry(position,width=8,textvariable=self.m2PosVar,font=entryFont,justify=CENTER,state=DISABLED)
         self.m2posentry.grid(row=2,column=1)
 
         self.getPosBtn = Button(position, text="Read", command=self.get_position,font=buttonFont)
@@ -119,15 +119,29 @@ class app:
 
         sep1 = Frame(position,height=2,bd=1,relief=SUNKEN)
         sep1.grid(row=3,column=0,columnspan=3,sticky=W+E,padx=3,pady=10)
-        #m1accellab = Label(position,text='Accel',font=labelFont)
-        #m1accellab.grid(row=2,column=0)
-        #m1accelunlab = Label(position,text='Hz/s',font=labelFont)
-        #m1accelunlab.grid(row=2,column=2)
-        #self.m1AccelVar = StringVar(master,'-')
-        #self.m1accelentry = Entry(position,width=8,textvariable=self.m1AccelVar,font=entryFont,justify=CENTER)
-        #self.m1accelentry.grid(row=2,column=1)
 
-        
+        gotlabel = Label(position,text='Desired:',font=labelFont)
+        gotlabel.grid(row=4,column=0,columnspan=2,sticky=W,pady=10)
+
+        m1gotlab = Label(position,text='X',font=labelFont)
+        m1gotlab.grid(row=5,column=0)
+        m1gotunlab = Label(position,text='Steps',font=labelFont)
+        m1gotunlab.grid(row=5,column=2)
+        self.m1GotVar = StringVar(master,'-')
+        self.m1gotentry = Entry(position,width=8,textvariable=self.m1PosVar,font=entryFont,justify=CENTER)
+        self.m1gotentry.grid(row=5,column=1)
+
+        m2gotlab = Label(position,text='Y',font=labelFont)
+        m2gotlab.grid(row=6,column=0)
+        m2gotunlab = Label(position,text='Steps',font=labelFont)
+        m2gotunlab.grid(row=6,column=2)
+        self.m2GotVar = StringVar(master,'-')
+        self.m2gotentry = Entry(position,width=8,textvariable=self.m2PosVar,font=entryFont,justify=CENTER)
+        self.m2gotentry.grid(row=6,column=1)
+
+        self.gotoBtn = Button(position, text="GoTo", command=self.goto_position,font=buttonFont)
+        self.gotoBtn.grid(row=4,column=2,pady=5)
+
         #right panel
         rightpan = LabelFrame(frame,text='Controll',padx=5,pady=5,font=frameFont)
         rightpan.pack(side=LEFT,fill=Y,padx=5,pady=5)
@@ -163,6 +177,9 @@ class app:
             self.readButton.config(state='disabled')
             self.writeButton.config(state='disabled')
             messagebox.showwarning('Warning','No serial module found!\nProbably PYSERIAL not installed.')
+
+    def goto_position(self):
+        pass
 
     def get_position(self):
 
