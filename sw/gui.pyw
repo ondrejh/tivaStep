@@ -90,6 +90,43 @@ class app:
         self.m2AccelVar = StringVar(master,'-')
         self.m2accelentry = Entry(traverse,width=8,textvariable=self.m2AccelVar,font=entryFont,justify=CENTER)
         self.m2accelentry.grid(row=5,column=1)
+
+        #position
+        position = LabelFrame(frame,text='Static Position',pady=5,padx=5,font=frameFont)
+        position.pack(side=LEFT,padx=5,pady=5,fill=Y,expand=1)
+
+        actlabel = Label(position,text='Actual:',font=labelFont)
+        actlabel.grid(row=0,column=0,columnspan=2,sticky=W,pady=10)
+
+        m1poslab = Label(position,text='X',font=labelFont)
+        m1poslab.grid(row=1,column=0)
+        m1posunlab = Label(position,text='Steps',font=labelFont)
+        m1posunlab.grid(row=1,column=2)
+        self.m1PosVar = StringVar(master,'-')
+        self.m1posentry = Entry(position,width=8,textvariable=self.m1PosVar,font=entryFont,justify=CENTER)
+        self.m1posentry.grid(row=1,column=1)
+
+        m2poslab = Label(position,text='Y',font=labelFont)
+        m2poslab.grid(row=2,column=0)
+        m2posunlab = Label(position,text='Steps',font=labelFont)
+        m2posunlab.grid(row=2,column=2)
+        self.m2PosVar = StringVar(master,'-')
+        self.m2posentry = Entry(position,width=8,textvariable=self.m2PosVar,font=entryFont,justify=CENTER)
+        self.m2posentry.grid(row=2,column=1)
+
+        self.getPosBtn = Button(position, text="Read", command=self.get_position,font=buttonFont)
+        self.getPosBtn.grid(row=0,column=2,pady=5)
+
+        sep1 = Frame(position,height=2,bd=1,relief=SUNKEN)
+        sep1.grid(row=3,column=0,columnspan=3,sticky=W+E,padx=3,pady=10)
+        #m1accellab = Label(position,text='Accel',font=labelFont)
+        #m1accellab.grid(row=2,column=0)
+        #m1accelunlab = Label(position,text='Hz/s',font=labelFont)
+        #m1accelunlab.grid(row=2,column=2)
+        #self.m1AccelVar = StringVar(master,'-')
+        #self.m1accelentry = Entry(position,width=8,textvariable=self.m1AccelVar,font=entryFont,justify=CENTER)
+        #self.m1accelentry.grid(row=2,column=1)
+
         
         #right panel
         rightpan = LabelFrame(frame,text='Controll',padx=5,pady=5,font=frameFont)
@@ -115,8 +152,6 @@ class app:
         self.readButton.pack(side=TOP,fill=X,expand=1,pady=1,padx=2)
         self.writeButton = Button(rightpan,text='Download',command=self.data_write,font=buttonFont)
         self.writeButton.pack(side=TOP,fill=X,expand=1,pady=1,padx=2)
-        self.eesaveButton = Button(rightpan,text='Save EEPROM',command=self.data_eesave,font=buttonFont)
-        self.eesaveButton.pack(side=TOP,fill=X,expand=1,pady=1,padx=2)
 
         self.default_entry_bg = self.m2speedentry.cget('bg')
         self.default_frame_bg = leftpan.cget('bg')
@@ -129,6 +164,28 @@ class app:
             self.writeButton.config(state='disabled')
             messagebox.showwarning('Warning','No serial module found!\nProbably PYSERIAL not installed.')
 
+    def get_position(self):
+
+        adr = 1
+        try:
+            adr = int(self.adrVar.get())
+        except:
+            messagebox.showerror('Error',message="Incorrect address format ".format(self.adrVar.get()))
+            return
+
+        try:
+            with serial.Serial(self.comVar.get(),comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
+                err = 0
+                answ = comm.readParams(port,adr,12,4)
+                if answ[0]!=4:
+                    err+=1
+                else:
+                    self.m1PosVar.set('{}'.format(answ[1][0]+(answ[1][1]<<16)))
+                    self.m2PosVar.set('{}'.format(answ[1][2]+(answ[1][3]<<16)))
+                if err>0:
+                    messagebox.showerror('Error',"Can't read some params")
+        except:
+            messagebox.showerror('Error',message="Can't open serial port {}".format(self.comVar.get()))
 
     def save_settings(self):
 
@@ -195,6 +252,12 @@ class app:
                     self.m1AccelVar.set('{}'.format(answ[1][1]))
                     self.m2SpeedVar.set('{}'.format(answ[1][2]))
                     self.m2AccelVar.set('{}'.format(answ[1][3]))
+                answ = comm.readParams(port,adr,12,4)
+                if answ[0]!=4:
+                    err+=1
+                else:
+                    self.m1PosVar.set('{}'.format(answ[1][0]+(answ[1][1]<<16)))
+                    self.m2PosVar.set('{}'.format(answ[1][2]+(answ[1][3]<<16)))
                 if err>0:
                     messagebox.showerror('Error',"Can't read some params")
                     
@@ -229,15 +292,6 @@ class app:
         else:
             messagebox.showerror('Error',"Some params are set incorrectly")
 
-    def data_eesave(self):
-        try:
-            with serial.Serial(self.comVar.get(),comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
-                answ = comm.writeParams(port,1,1,1,[0x0100,])
-                if answ!='OK':
-                    messagebox.showerror('Error',"No answer to Save EEPROM command")
-        except:
-            messagebox.showerror('Error',"Can't open serial port {}".format(self.comVar.get()))
-        
     def check_data(self):
 
         self.data_test()
