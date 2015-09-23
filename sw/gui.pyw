@@ -11,6 +11,9 @@ try:
 except:
     pass
 
+TIME_TURN_S = 86400
+STEPS_TURN = 2304000
+
 configfilename = 'setup.cfg'
 
 frameFont = ("Arial",12)
@@ -69,6 +72,15 @@ class app:
         self.timeEntry.grid(row=1,column=0,columnspan=2)
         timeunlab = Label(timefrm,text='s',font=labelFont)
         timeunlab.grid(row=1,column=2)
+
+        #fastscroll
+        fastscr = LabelFrame(leftpan,text='Scroll X',pady=5,padx=5,font=frameFont)
+        fastscr.pack(side=TOP,padx=5,pady=5,fill=X,expand=1)
+
+        btnStartScr = Button(fastscr,text='Start',command=self.start_scroll,font=buttonFont)
+        btnStartScr.grid(row=0,column=0,sticky=W+E)
+        btnStopScr = Button(fastscr,text='Stop',command=self.stop_scroll,font=buttonFont)
+        btnStopScr.grid(row=0,column=1,sticky=W+E)
                 
         #traverse
         traverse = LabelFrame(leftpan,text='Traverse',pady=5,padx=5,font=frameFont)
@@ -266,6 +278,104 @@ class app:
             self.writeButton.config(state='disabled')
             messagebox.showwarning('Warning','No serial module found!\nProbably PYSERIAL not installed.')
 
+    def start_scroll(self):
+
+        adr = 1
+        try:
+            adr = int(self.adrVar.get())
+        except:
+            messagebox.showerror('Error',message="Incorrect address format ".format(self.adrVar.get()))
+            return
+        pass
+
+        tim = 0
+        pos = 0
+        
+        try:
+            with serial.Serial(self.comVar.get(),comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
+                err = 0
+                answ = comm.readParams(port,adr,10,4)
+                if answ[0]!=4:
+                    err+=1
+                else:
+                    tim = get_signed_32bit(answ[1][1],answ[1][0])
+                    self.TimeVar.set('{}'.format(tim))
+                    pos = get_signed_32bit(answ[1][3],answ[1][2])
+                    self.m1PosVar.set('{}'.format(pos))
+                if err>0:
+                    messagebox.showerror('Error',"Can't read some necessary values")
+                    return
+                tZero = tim
+                sZero = -pos
+                tTurn = TIME_TURN_S
+                sTurn = STEPS_TURN
+                answ = comm.writeParams(port,adr,20,2,[tZero&0xFFFF,(tZero>>16)&0xFFFF])
+                if answ!='OK':
+                    err+=1
+                else:
+                    self.m1tZeroVar.set('{}'.format(tZero))
+                answ = comm.writeParams(port,adr,24,2,[sZero&0xFFFF,(sZero>>16)&0xFFFF])
+                if answ!='OK':
+                    err+=1
+                else:
+                    self.m1sZeroVar.set('{}'.format(sZero))
+                answ = comm.writeParams(port,adr,28,2,[sTurn&0xFFFF,(sTurn>>16)&0xFFFF])
+                if answ!='OK':
+                    err+=1
+                else:
+                    self.m1sTurnVar.set('{}'.format(sTurn))
+                answ = comm.writeParams(port,adr,32,2,[tTurn&0xFFFF,(tTurn>>16)&0xFFFF])
+                if answ!='OK':
+                    err+=1
+                else:
+                    self.m1tTurnVar.set('{}'.format(tTurn))
+                if err>0:
+                    messagebox.showerror('Error',"Can't write some params")
+        except:
+            messagebox.showerror('Error',message="Can't open serial port {}".format(self.comVar.get()))
+            return
+
+    def stop_scroll(self):
+        
+        adr = 1
+        try:
+            adr = int(self.adrVar.get())
+        except:
+            messagebox.showerror('Error',message="Incorrect address format ".format(self.adrVar.get()))
+            return
+
+        pos = 0
+        
+        try:
+            with serial.Serial(self.comVar.get(),comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
+                err = 0
+                answ = comm.readParams(port,adr,12,2)
+                if answ[0]!=2:
+                    err+=1
+                else:
+                    pos = get_signed_32bit(answ[1][1],answ[1][0])
+                    self.m1PosVar.set('{}'.format(pos))
+                if err>0:
+                    messagebox.showerror('Error',"Can't read some necessary values")
+                    return
+                sZero = pos
+                tTurn = 0
+                answ = comm.writeParams(port,adr,24,2,[sZero&0xFFFF,(sZero>>16)&0xFFFF])
+                if answ!='OK':
+                    err+=1
+                else:
+                    self.m1sZeroVar.set('{}'.format(sZero))
+                answ = comm.writeParams(port,adr,32,2,[tTurn&0xFFFF,(tTurn>>16)&0xFFFF])
+                if answ!='OK':
+                    err+=1
+                else:
+                    self.m1tTurnVar.set('{}'.format(tTurn))
+                if err>0:
+                    messagebox.showerror('Error',"Can't write some params")
+        except:
+            messagebox.showerror('Error',message="Can't open serial port {}".format(self.comVar.get()))
+            return
+        
     def get_time(self):
         
         adr = 1
