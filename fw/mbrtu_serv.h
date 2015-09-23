@@ -1,8 +1,8 @@
 #ifndef __MBRTU_SERV_H__
 #define __MBRTU_SERV_H__
 
-#define MBRTU_TX_BUFF_SIZE 64
-#define MBRTU_RX_BUFF_SIZE 64
+#define MBRTU_TX_BUFF_SIZE 128
+#define MBRTU_RX_BUFF_SIZE 128
 
 #define MBRTU_TIMEOUT 1823 /* 19.2kBaud, 3.5 * 10 bit */
 #define MBRTU_ADDRESS_DEFAULT 0x01

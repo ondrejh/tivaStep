@@ -120,11 +120,18 @@ void error_state(void)
 #define M_POSITION_OFFSET(x) ((x==0)?M1_POSITION_OFFSET:M2_POSITION_OFFSET)
 #define M_GOTOPOS_OFFSET(x) ((x==0)?M1_GOTOPOS_OFFSET:M2_GOTOPOS_OFFSET)
 
+#define M_TIME_ZERO(x) ((x==0)?M1_TIME_ZERO:M2_TIME_ZERO)
+#define M_STEPS_ZERO(x) ((x==0)?M1_STEPS_ZERO:M2_STEPS_ZERO)
+#define M_TURN_STEPS(x) ((x==0)?M1_TURN_STEPS:M2_TURN_STEPS)
+#define M_TURN_TIME(x) ((x==0)?M1_TURN_TIME:M2_TURN_TIME)
+#define M_DESIRED_TIME(x) ((x==0)?M1_DESIRED_TIME:M2_DESIRED_TIME)
+#define M_DESIRED_POS(x) ((x==0)?M1_DESIRED_POS:M2_DESIRED_POS)
+
 typedef struct {
     float speed;
     float accel;
-    int32_t position;
-    int32_t gotopos;
+    uint32_t position;
+    uint32_t gotopos;
 } motor_t;
 
 void motor_init(motor_t *m)
@@ -186,6 +193,16 @@ int sigf(float f)
         return 1;
     else
         return 0;
+}
+
+int32_t get_desired_pos(int32_t t_sec, int32_t t_subs, int32_t t_zero, int32_t t_turn, int32_t s_turn, int32_t s_zero)
+{
+    if (t_turn!=0) {
+        double t = (double)((int32_t)(t_sec-t_zero)+(double)t_subs/(double)RTC_SUBSEC_ONESEC);
+        double s = t/(double)t_turn*(double)s_turn;
+        return (int32_t)s+s_zero;
+    }
+    return s_zero;
 }
 
 // main program
@@ -258,9 +275,15 @@ int main(void)
             m[i].position = motor_get_position(i);
             tab_write(M_POSITION_OFFSET(i),(uint32_t)m[i].position);
 
-            m[i].gotopos = tab_read(M_GOTOPOS_OFFSET(i));
+            m[i].gotopos = get_desired_pos(rtcs,rtcss,
+                                           tab_read(M_TIME_ZERO(i)),
+                                           tab_read(M_TURN_TIME(i)),
+                                           tab_read(M_TURN_STEPS(i)),
+                                           tab_read(M_STEPS_ZERO(i)));
 
-            int32_t epos = m[i].gotopos-m[i].position;
+            tab_write(M_GOTOPOS_OFFSET(i),m[i].gotopos);
+
+            int32_t epos = (int32_t)m[i].gotopos-(int32_t)m[i].position;
             if (epos>0) {
                 m[i].accel = (float)tab_read_16b(M_TEST_ACCEL_OFFSET(i));
                 if (steps_to_stop(m[i].speed,m[i].accel)>epos)
@@ -276,67 +299,6 @@ int main(void)
                 } else
                     m[i].accel = -(float)(tab_read_16b(M_TEST_ACCEL_OFFSET(i))*sigf(m[i].speed));
             }
-
-            /*switch (m[i].seqv) {
-            case 0:
-                if (SWn1(i)) {
-                    m[i].finalspeed = (float)tab_read_16b(M_TEST_SPEED_OFFSET(i));
-                    m[i].accel = (float)tab_read_16b(M_TEST_ACCEL_OFFSET(i));
-                    m[i].speed = 10;
-                    m[i].seqv++;
-                }
-                else if (SWn2(i)) {
-                    m[i].finalspeed = -(float)tab_read_16b(M_TEST_SPEED_OFFSET(i));
-                    m[i].accel = -(float)tab_read_16b(M_TEST_ACCEL_OFFSET(i));
-                    m[i].speed = -10;
-                    m[i].seqv=4;
-                }
-                break;
-            case 1:
-                if (SWn1(i)) {
-                    m[i].speed = accel(m[i].speed,m[i].accel,tDiff);
-                    if (m[i].speed>= m[i].finalspeed) {
-                        m[i].speed = m[i].finalspeed;
-                        m[i].seqv++;
-                    }
-                } else m[i].seqv+=2;
-                break;
-            case 2:
-                if (!(SWn1(i))) m[i].seqv++;
-                break;
-            case 3:
-                if (SWn1(i)) m[i].seqv-=2;
-                else {
-                    m[i].speed = accel(m[i].speed,-m[i].accel,tDiff);
-                    if (m[i].speed<=10) {
-                        m[i].speed = 0.0;
-                        m[i].seqv=0;
-                    }
-                }
-                break;
-            case 4:
-                if (SWn2(i)) {
-                    m[i].speed = accel(m[i].speed,m[i].accel,tDiff);
-                    if (m[i].speed<= m[i].finalspeed) {
-                        m[i].speed = m[i].finalspeed;
-                        m[i].seqv++;
-                    }
-                } else m[i].seqv+=2;
-                break;
-            case 5:
-                if (!(SWn2(i))) m[i].seqv++;
-                break;
-            case 6:
-                if (SWn2(i)) m[i].seqv-=2;
-                else {
-                    m[i].speed = accel(m[i].speed,-m[i].accel,tDiff);
-                    if (m[i].speed>=-10) {
-                        m[i].speed = 0.0;
-                        m[i].seqv=0;
-                    }
-                }
-                break;
-            }*/
 
             m[i].speed = accel_limit(m[i].speed,(float)tab_read_16b(M_TEST_SPEED_OFFSET(i)),m[i].accel,tDiff);
 

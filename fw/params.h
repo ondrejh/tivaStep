@@ -4,6 +4,9 @@
 #define TEST_SPEED_DEFAULT 2000
 #define TEST_ACCEL_DEFAULT 5000
 
+#define TEST_TURN_STEPS_DEFAULT (16*200*1000)
+#define TEST_TURN_TIME_DEFAULT (60*60*24)
+
 // 16 bit table
 #define M1_TEST_SPEED_OFFSET 4
 #define M1_TEST_ACCEL_OFFSET 5
@@ -18,6 +21,16 @@
 #define M2_POSITION_OFFSET 7
 #define M1_GOTOPOS_OFFSET 8
 #define M2_GOTOPOS_OFFSET 9
+
+// tracking setup
+#define M1_TIME_ZERO 10
+#define M2_TIME_ZERO 11
+#define M1_STEPS_ZERO 12
+#define M2_STEPS_ZERO 13
+#define M1_TURN_STEPS 14
+#define M2_TURN_STEPS 15
+#define M1_TURN_TIME 16
+#define M2_TURN_TIME 17
 
 void init_table(void);
 void tab_write(int pos, uint32_t value);
