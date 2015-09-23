@@ -632,21 +632,21 @@ class app:
                                 self.TimeVar.set(line[len('time_val='):].strip())
                     elif group=='tracking':
                         if line[:len('m1_tzero=')]=='m1_tzero=':
-                                self.m1tZero.set(line[len('m1_tzero='):].strip())
+                                self.m1tZeroVar.set(line[len('m1_tzero='):].strip())
                         elif line[:len('m2_tzero=')]=='m2_tzero=':
-                            self.m2tZero.set(line[len('m2_tzero='):].strip())
+                            self.m2tZeroVar.set(line[len('m2_tzero='):].strip())
                         elif line[:len('m1_szero=')]=='m1_szero=':
-                            self.m1sZero.set(line[len('m1_szero='):].strip())
+                            self.m1sZeroVar.set(line[len('m1_szero='):].strip())
                         elif line[:len('m2_szero=')]=='m2_szero=':
-                            self.m2sZero.set(line[len('m2_szero='):].strip())
+                            self.m2sZeroVar.set(line[len('m2_szero='):].strip())
                         elif line[:len('m1_sturn=')]=='m1_sturn=':
-                            self.m1sTurn.set(line[len('m1_sturn='):].strip())
+                            self.m1sTurnVar.set(line[len('m1_sturn='):].strip())
                         elif line[:len('m2_sturn=')]=='m2_sturn=':
-                            self.m2sTurn.set(line[len('m2_sturn='):].strip())
+                            self.m2sTurnVar.set(line[len('m2_sturn='):].strip())
                         elif line[:len('m1_tturn=')]=='m1_tturn=':
-                            self.m1tTurn.set(line[len('m1_tturn='):].strip())
+                            self.m1tTurnVar.set(line[len('m1_tturn='):].strip())
                         elif line[:len('m2_tturn=')]=='m2_tturn=':
-                            self.m2tTurn.set(line[len('m2_tturn='):].strip())
+                            self.m2tTurnVar.set(line[len('m2_tturn='):].strip())
             f.close()
 
 if __name__=="__main__":
