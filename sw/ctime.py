@@ -77,9 +77,26 @@ if __name__ == "__main__":
             print('{:08X}'.format(t))
             print(getPosition(port,modbus_adr))'''
 
-        set32bitReg(port,modbus_adr,TURN_STEPS,10000)
+        '''set32bitReg(port,modbus_adr,TURN_STEPS,10000)
         set32bitReg(port,modbus_adr,TURN_TIME,1000)
 
         for i in range(100):
-            print(get32bitReg(port,modbus_adr,MOTOR_GOTOPOS_ADDRESS>>1))
+            print(get32bitReg(port,modbus_adr,MOTOR_GOTOPOS_ADDRESS>>1))'''
+
+
+        with open('timeLog.txt','w') as file:
+
+            tStart = time.clock()
+
+            while True:
+
+                tim = getTime(port,modbus_adr)
+                tN = time.clock()
+                file.write('{},{}\n'.format(tN,tim))
+
+                if tN-tStart>600:
+                    break
+
+            file.close()
+            
 
