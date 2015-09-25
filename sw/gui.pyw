@@ -306,7 +306,7 @@ class app:
                     messagebox.showerror('Error',"Can't read some necessary values")
                     return
                 tZero = tim
-                sZero = -pos
+                sZero = pos
                 tTurn = TIME_TURN_S
                 sTurn = STEPS_TURN
                 answ = comm.writeParams(port,adr,20,2,[tZero&0xFFFF,(tZero>>16)&0xFFFF])
