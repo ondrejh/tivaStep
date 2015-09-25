@@ -198,7 +198,7 @@ int sigf(float f)
 int32_t get_desired_pos(int32_t t_sec, int32_t t_subs, int32_t t_zero, int32_t t_turn, int32_t s_turn, int32_t s_zero)
 {
     if (t_turn!=0) {
-        double t = (double)((int32_t)(t_sec-t_zero)+(double)t_subs/(double)RTC_SUBSEC_ONESEC);
+        double t = (double)((double)(t_sec-t_zero)+(double)t_subs/(double)RTC_SUBSEC_ONESEC);
         double s = t/(double)t_turn*(double)s_turn;
         return (int32_t)s+s_zero;
     }
@@ -209,7 +209,8 @@ int32_t get_desired_pos(int32_t t_sec, int32_t t_subs, int32_t t_zero, int32_t t
 int main(void)
 {
     // init clock
-    SysCtlClockSet(SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
+    SysCtlClockSet(SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ); // 16MHz
+    //SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ); // 40MHz
 
     ROM_IntMasterEnable();
 

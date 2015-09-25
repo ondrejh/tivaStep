@@ -6,7 +6,13 @@
  **/
 void rtc_init(void)
 {
+    // Hibernate RTC Trim according to:
+    //   http://e2e.ti.com/support/microcontrollers/tiva_arm/f/908/p/259103/907463
+    //   otherwise it skips every 65th second
     HibernateEnableExpClk(SysCtlClockGet());
+    HibernateClockConfig(HIBERNATE_OSC_LOWDRIVE);
+    SysCtlDelay(SysCtlClockGet()*3);
+    HibernateRTCTrimSet(0x7FFF);
     HibernateRTCSet(0);
     HibernateRTCEnable();
 }

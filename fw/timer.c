@@ -5,9 +5,14 @@
 
 /******* defines ********/
 
+// 16MHz
 #define TICKS_PER_MICROSEC 16
 #define TICKS_PER_MILISEC 16000
 #define TICKS_PER_SECOND 16000000
+// 40MHz
+/*#define TICKS_PER_MICROSEC 40
+#define TICKS_PER_MILISEC 40000
+#define TICKS_PER_SECOND 40000000*/
 
 #define get_fast_ticks() TimerValueGet(TIMER0_BASE,TIMER_A)
 #define get_slow_ticks() TimerValueGet(TIMER0_BASE,TIMER_B)
