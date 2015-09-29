@@ -1,6 +1,7 @@
 import test as comm
 import time
 import serial
+import ntplib
 
 portname='COM1'
 modbus_adr=1
@@ -62,7 +63,7 @@ def get32bitReg(port,adr,vadr):
     except:
         return answ
 
-def testTime(filename):
+def testTime(filename,ntpclient,cnt):
 
     with serial.Serial(portname,comm.baudRate,bytesize=8,parity=serial.PARITY_NONE,stopbits=2,timeout=comm.portTimeout) as port:
 
@@ -74,7 +75,9 @@ def testTime(filename):
                 if t-round(t-0.5)>0.9:
                     setTime(port,modbus_adr,round(t+1))
                     break
-            s = '{},0'.format(round(t))
+            response = ntpclient.request('tik.cesnet.cz')
+            cnt = 0
+            s = '{},{},{:0.03f},{:0.03f}'.format(cnt,round(t),t,response.tx_time)
             file=open(filename,'w')
             file.write('{}\n'.format(s))
             file.close()
@@ -85,7 +88,8 @@ def testTime(filename):
                 if t!=tt:
                     tn += time.time()
                     tn /= 2
-                    s = '{},{:0.03f}'.format(round(tn),t-tn)
+                    response = ntpclient.request('tik.cesnet.cz')
+                    s = '{},{},{:0.03f},{:0.03f}'.format(cnt,t,tn,response.tx_time)
                     file=open(filename,'a')
                     file.write('{}\n'.format(s))
                     file.close()
@@ -95,8 +99,12 @@ def testTime(filename):
 
 if __name__ == "__main__":
 
+    c = ntplib.NTPClient()
+    cnt = 0
+
     while True:
 
-        answ = testTime('timeLog.txt')
+        answ = testTime('timeLog.txt',c,cnt)
+        cnt+=1
         print(answ)
-        time.sleep(600)
+        time.sleep(5)
