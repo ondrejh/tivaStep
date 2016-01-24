@@ -2,7 +2,7 @@ close all
 clear all
 
 bodA = 8000; % kroku
-bodB = 7500; % kroku
+bodB = 5000; % kroku
 
 dt = 0.0001; % casovy krok simulace
 
@@ -19,7 +19,7 @@ v = v0;
 
 data = [t,bodP,v];
 
-for i=(0:20000)
+for i=(0:100000)
   smerA = 0;
   if ((round(bodB-bodP))>0)
     smerA = constA;
